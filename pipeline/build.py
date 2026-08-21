@@ -88,6 +88,49 @@ def rest_days(games: list[dict]) -> dict[str, int]:
     return out
 
 
+def fbs_teams(games: list[dict]) -> set[str]:
+    """
+    Which teams this season's schedule treats as full FBS participants.
+
+    ESPN's ``groups=80`` scoreboard filter returns any game involving at least
+    one FBS team -- which correctly includes "buy games" against a smaller
+    school, so an FCS opponent shows up in the data too. There's no reliable
+    classification flag on the team object itself (the site API's own /teams
+    endpoint ignores the groups filter and happily returns Division III
+    schools), so this infers it from behaviour instead: a genuine FBS program
+    hosts several games a year, while an FCS opponent brought in for a payout
+    game is, essentially without exception, always the AWAY team. A team that
+    never once appears as the home side across the whole season's schedule is
+    not being treated as an FBS peer by the schedule itself.
+    """
+    return {g["home"]["abbr"] for g in games if g.get("home", {}).get("abbr")}
+
+
+def fcs_guard(cands: list[dict], home_abbr: str, away_abbr: str,
+             fbs: set[str], cfg: dict) -> list[dict]:
+    """
+    Refuse to recommend either side of a game against a non-FBS opponent.
+
+    This is the concrete case the guard exists for: an FCS team getting run off
+    the field produces a market spread the model has no real basis to challenge
+    -- it has almost no data on that team, and what little it has gets pulled
+    toward "average FBS team" by the ratings' own regularisation, which is far
+    too generous for a team that isn't FBS at all. The result is a wide,
+    confident-looking "edge" that is really just the model's blind spot, not a
+    disagreement worth betting into.
+    """
+    if not cfg["filters"].get("exclude_fcs_opponents"):
+        return cands
+    if home_abbr in fbs and away_abbr in fbs:
+        return cands
+    missing = away_abbr if home_abbr in fbs else (home_abbr if away_abbr in fbs else f"{home_abbr}/{away_abbr}")
+    for c in cands:
+        if c["tier"] != "PASS":
+            c["tier"] = "PASS"
+        c["filtered"] = f"{missing} isn't a full FBS participant this season — model doesn't rate them reliably"
+    return cands
+
+
 def project(g: dict, rat: dict, hfa: float, score_rat: dict, league: float,
             home_bump: float, rests: dict, ovr: dict, cfg: dict) -> dict:
     """Projected margin (home - away) and projected combined total."""
@@ -339,7 +382,9 @@ def main() -> int:
     played = R.games_played(games)
     form = R.ats_form(games)
     rests = rest_days(games)
+    fbs = fbs_teams(games)
     print(f"   ratings: {len(rat)} teams | home field {hfa:.2f} pts | league avg {league:.1f} pts")
+    print(f"   FBS home participants this season: {len(fbs)} teams")
 
     # 5. Price the board.
     board: list[dict] = []
@@ -357,6 +402,7 @@ def main() -> int:
         if not proj["ratings_known"]:
             conf = min(conf, 0.4)
         cands = apply_filters(price_game(g, proj, cfg, conf), cfg)
+        cands = fcs_guard(cands, g["home"]["abbr"], g["away"]["abbr"], fbs, cfg)
         for c in cands:
             c["projection"] = proj
         board.extend(cands)
