@@ -80,6 +80,7 @@ def run(games: list[dict], cfg: dict, min_history: int = 60,
             sr, league, bump = R.solve_scoring_ratings(history, cfg)
             n_played = R.games_played(history)
             rests = B.rest_days(history + todays)
+            fbs = B.fbs_teams(history + todays)
 
             day_cands: list[dict] = []
             for g in todays:
@@ -87,6 +88,7 @@ def run(games: list[dict], cfg: dict, min_history: int = 60,
                                           n_played.get(g["away"]["abbr"], 0), True, cfg)
                 proj = B.project(g, rat, hfa, sr, league, bump, rests, {}, cfg)
                 cands = B.apply_filters(B.price_game(g, proj, cfg, conf), cfg)
+                cands = B.fcs_guard(cands, g["home"]["abbr"], g["away"]["abbr"], fbs, cfg)
                 for c in cands:
                     won = _outcome(c, g)
                     if won is not None:
