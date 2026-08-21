@@ -87,6 +87,7 @@ def main() -> int:
                                       prior=R.regress_to_prior(prior_rat, 0.62))
     score_rat, league, bump = R.solve_scoring_ratings(games, cfg)
     played, form, rests = R.games_played(games), R.ats_form(games), B.rest_days(games)
+    fbs = B.fbs_teams(games)
 
     # Mirror the real pipeline exactly: price everything, guard correlation,
     # cap the week, and only then log bets -- otherwise the preview shows a
@@ -96,7 +97,9 @@ def main() -> int:
     for g in sorted(games, key=lambda x: x["date_utc"]):
         conf = M.confidence_score(played.get(g["home"]["abbr"],0), played.get(g["away"]["abbr"],0), True, cfg)
         proj = B.project(g, rat, hfa, score_rat, league, bump, rests, {}, cfg)
-        for c in B.apply_filters(B.price_game(g, proj, cfg, conf), cfg):
+        cands = B.fcs_guard(B.apply_filters(B.price_game(g, proj, cfg, conf), cfg),
+                            g["home"]["abbr"], g["away"]["abbr"], fbs, cfg)
+        for c in cands:
             c["projection"] = proj
             c["_completed"] = g["completed"]
             priced.append(c)
