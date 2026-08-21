@@ -369,6 +369,43 @@ def test_weekly_cap(cfg: dict) -> None:
           len([c for c in spread if c["tier"] != "PASS"]) == len(cands))
 
 
+def test_fcs_guard(cfg: dict) -> None:
+    """
+    Reproduces the exact failure a live run surfaced: an FCS "buy game"
+    opponent, barely rated from a sliver of prior-season data, showing up as a
+    confident recommendation because the model has no real basis to know it's
+    outclassed. fbs_teams() infers FBS status from who hosts games this season
+    (FCS payout-game opponents are essentially always the visiting team);
+    fcs_guard() then refuses to recommend either side of a game against a team
+    that inference doesn't recognise.
+    """
+    print("\n[FCS guard]")
+    season = [
+        {"game_id": "1", "home": {"abbr": "MIZ"}, "away": {"abbr": "ALA"}},
+        {"game_id": "2", "home": {"abbr": "ALA"}, "away": {"abbr": "MIZ"}},
+        {"game_id": "3", "home": {"abbr": "MIZ"}, "away": {"abbr": "UAPB"}},
+        # UAPB never hosts -- the tell that it isn't a full FBS participant.
+    ]
+    fbs = B.fbs_teams(season)
+    check("hosts are recognised as FBS", {"MIZ", "ALA"} <= fbs, str(fbs))
+    check("a team that never hosts is not", "UAPB" not in fbs, str(fbs))
+
+    cands = [{"tier": "BEST BET", "edge": 0.30, "market": "ATS", "side": "away"}]
+    guarded = B.fcs_guard([dict(c) for c in cands], "MIZ", "UAPB", fbs, cfg)
+    check("a game against a non-FBS opponent is forced to PASS",
+          guarded[0]["tier"] == "PASS", guarded[0]["tier"])
+    check("the demotion explains itself", "UAPB" in (guarded[0].get("filtered") or ""),
+          guarded[0].get("filtered"))
+
+    untouched = B.fcs_guard([dict(c) for c in cands], "MIZ", "ALA", fbs, cfg)
+    check("a real FBS-vs-FBS game is untouched", untouched[0]["tier"] == "BEST BET")
+
+    c2 = json.loads(json.dumps(cfg))
+    c2["filters"]["exclude_fcs_opponents"] = False
+    off = B.fcs_guard([dict(c) for c in cands], "MIZ", "UAPB", fbs, c2)
+    check("the guard is a no-op when the setting is off", off[0]["tier"] == "BEST BET")
+
+
 def test_rest_days() -> None:
     print("\n[schedule-derived rest days]")
     games = [
@@ -411,6 +448,7 @@ def main() -> int:
     test_tiers(cfg)
     test_grading_and_ledger(cfg)
     test_pricing_pipeline(cfg)
+    test_fcs_guard(cfg)
     test_calibration(cfg)
     test_weekly_cap(cfg)
     test_rest_days()
