@@ -1,0 +1,8 @@
+{
+  "_comment": "Manual adjustments no feed knows about: injuries, suspensions, weather. Keyed by ESPN game_id (find it on the Games & Results sheet or in site/data/games.json). margin_adj is in points, positive favours the HOME team. total_adj shifts the projected combined score. This file is never overwritten by the pipeline. Delete the example below.",
+  "_example_401752815": {
+    "margin_adj": -3.5,
+    "total_adj": -2.0,
+    "note": "home starting QB out"
+  }
+}

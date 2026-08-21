@@ -1,0 +1,83 @@
+name: Refresh model
+
+# Free on GitHub Actions for a public repo, and comfortably inside the free
+# minutes for a private one: each run takes well under a minute.
+#
+# Times are UTC. The schedule below is tuned for Eastern time:
+#   13:00 UTC = 09:00 ET   morning line check
+#   17:00 UTC = 13:00 ET   before the early kicks
+#   21:00 UTC = 17:00 ET   before the afternoon slate
+#   03:00 UTC = 23:00 ET   after the late games, to grade
+# GitHub's scheduler is best-effort and can run several minutes late. That is
+# fine for a model that reads a market, but do not treat it as a live feed.
+on:
+  schedule:
+    - cron: "0 13,17,21 * * *"
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Full-season backfill (slow, rebuilds the cache)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ncaaf-edge
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Self-test
+        # If the model is broken, do not publish numbers from it.
+        run: python -m tests.test_offline
+
+      - name: Refresh
+        run: |
+          if [ "${{ inputs.full }}" = "true" ]; then
+            python -m pipeline.build --full
+          else
+            python -m pipeline.build
+          fi
+
+      - name: Export workbook
+        run: python -m pipeline.to_excel
+
+      - name: Commit state and data
+        run: |
+          git config user.name  "ncaaf-edge bot"
+          git config user.email "actions@github.com"
+          git add -A state site/data NCAAF_Edge_Model.xlsx
+          git diff --staged --quiet || git commit -m "refresh $(date -u +'%Y-%m-%d %H:%M UTC')"
+          # Another run may have pushed while this one was working.
+          git pull --rebase --autostash origin ${{ github.ref_name }} || true
+          git push
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  publish:
+    needs: refresh
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

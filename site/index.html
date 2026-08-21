@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>NCAAF Edge Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* ------------------------------------------------------------------ tokens */
+:root{
+  --ground:#F2F3F6; --surface:#FFFFFF; --surface-2:#EAECF1; --line:#D6DAE3;
+  --ink:#13171F; --ink-2:#4A5261; --ink-3:#767E8D;
+  --flag:#A66F0B; --flag-soft:#F3E3C4; --flag-ink:#6E4805;
+  --good:#1D7A4C; --good-soft:#D8EFE2;
+  --bad:#B02B32; --bad-soft:#F7DCDD;
+  --neutral:#5B6472; --cool:#2C6E8F;
+  --on-flag:#FFFFFF;
+  --shadow:0 1px 2px rgba(16,20,28,.06),0 8px 24px -12px rgba(16,20,28,.18);
+  --radius:3px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0D1117; --surface:#151A22; --surface-2:#1D242E; --line:#2A3340;
+    --ink:#E7EBF2; --ink-2:#A3ACBB; --ink-3:#6F7887;
+    --flag:#E0A83C; --flag-soft:#3A2D10; --flag-ink:#F0C877;
+    --good:#4FBF7B; --good-soft:#12301F;
+    --bad:#E86A70; --bad-soft:#3A1719;
+    --neutral:#8A93A2; --cool:#63B3D4;
+    --on-flag:#12161C;
+    --shadow:0 1px 2px rgba(0,0,0,.5),0 8px 28px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D1117; --surface:#151A22; --surface-2:#1D242E; --line:#2A3340;
+  --ink:#E7EBF2; --ink-2:#A3ACBB; --ink-3:#6F7887;
+  --flag:#E0A83C; --flag-soft:#3A2D10; --flag-ink:#F0C877;
+  --good:#4FBF7B; --good-soft:#12301F;
+  --bad:#E86A70; --bad-soft:#3A1719;
+  --neutral:#8A93A2; --cool:#63B3D4;
+  --on-flag:#12161C;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 8px 28px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ground); color:var(--ink);
+  font:400 15px/1.5 "Public Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1360px;margin:0 auto;padding:0 20px 72px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+/* ----------------------------------------------------------------- masthead */
+header.mast{border-bottom:1px solid var(--line);background:var(--surface);position:relative}
+.mast-in{max-width:1360px;margin:0 auto;padding:22px 20px 0;
+  display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.brand h1{
+  font-family:"Fraunces",Georgia,serif; font-weight:700; font-size:clamp(24px,3.4vw,34px);
+  letter-spacing:-.015em; margin:0; line-height:1.05; text-wrap:balance;
+}
+.brand .sub{margin:5px 0 0;color:var(--ink-3);font-size:12.5px;letter-spacing:.04em;text-transform:uppercase}
+.mast-right{display:flex;gap:8px;align-items:center}
+.stamp{font-size:12px;color:var(--ink-3);text-align:right;line-height:1.35}
+.stamp b{color:var(--ink-2);font-weight:600}
+.iconbtn{
+  border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);
+  border-radius:var(--radius);padding:7px 11px;font:600 12px/1 "Public Sans",sans-serif;cursor:pointer;
+}
+.iconbtn:hover{color:var(--ink);border-color:var(--ink-3)}
+.iconbtn:focus-visible{outline:2px solid var(--cool);outline-offset:2px}
+
+/* --------------------------------------------------------------------- kpis */
+.kpis{
+  max-width:1360px;margin:0 auto;padding:18px 20px 0;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-bottom:none;
+}
+.kpi{background:var(--surface);padding:12px 14px 13px}
+.kpi .k{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+.kpi .v{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;
+  font-size:21px;font-weight:600;margin-top:4px;letter-spacing:-.02em}
+.kpi .m{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.pos{color:var(--good)} .neg{color:var(--bad)} .flagc{color:var(--flag)}
+
+/* --------------------------------------------------------------------- tabs */
+nav.tabs{max-width:1360px;margin:0 auto;padding:0 20px;display:flex;gap:0;overflow-x:auto;
+  border-bottom:1px solid var(--line);background:var(--surface)}
+nav.tabs button{
+  appearance:none;background:none;border:none;border-bottom:2px solid transparent;
+  padding:13px 15px;font:600 13.5px/1 "Public Sans",sans-serif;color:var(--ink-3);
+  cursor:pointer;white-space:nowrap;letter-spacing:.01em;
+}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--flag)}
+nav.tabs button:focus-visible{outline:2px solid var(--cool);outline-offset:-2px}
+nav.tabs .cnt{color:var(--ink-3);font-weight:500;margin-left:5px}
+
+section[hidden]{display:none}
+.panel{padding-top:26px}
+.panel-head{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.panel-head h2{font-family:"Fraunces",Georgia,serif;font-weight:600;font-size:20px;margin:0;letter-spacing:-.01em}
+.panel-head p{margin:0;color:var(--ink-3);font-size:13px;max-width:62ch}
+
+/* ------------------------------------------------------------------ filters */
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:14px}
+.chipbtn{
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+  padding:5px 10px;border-radius:100px;font:600 11.5px/1.35 "Public Sans",sans-serif;cursor:pointer;
+  letter-spacing:.02em;
+}
+.chipbtn[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.chipbtn:focus-visible{outline:2px solid var(--cool);outline-offset:2px}
+.search{
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  padding:6px 10px;border-radius:var(--radius);font:400 13px/1.3 "Public Sans",sans-serif;min-width:180px;
+}
+.search:focus-visible{outline:2px solid var(--cool);outline-offset:1px}
+.spacer{flex:1}
+
+/* ------------------------------------------------------------------- tables */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;min-width:900px}
+thead th{
+  position:sticky;top:0;z-index:2;background:var(--surface-2);
+  font:600 10.5px/1 "Public Sans",sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);
+  text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover{color:var(--ink)}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surface-2)}
+td.r,th.r{text-align:right}
+.stripe{border-left:3px solid transparent;padding-left:12px!important}
+.s-best{border-left-color:var(--flag)}
+.s-good{border-left-color:var(--flag);opacity:1}
+.s-lean{border-left-color:var(--line)}
+.matchup{font-weight:600;white-space:nowrap}
+.matchup small{display:block;font-weight:400;color:var(--ink-3);font-size:11.5px;letter-spacing:.01em}
+.pick{font-family:"IBM Plex Mono",monospace;font-weight:500;white-space:nowrap}
+
+/* -------------------------------------------------------------------- chips */
+.tier{
+  display:inline-block;padding:3px 8px;border-radius:2px;white-space:nowrap;
+  font:600 10.5px/1.4 "Public Sans",sans-serif;letter-spacing:.06em;text-transform:uppercase;
+  border:1px solid transparent;
+}
+.tier.best{background:var(--flag);color:var(--on-flag);border-color:var(--flag)}
+.tier.good{background:var(--flag-soft);color:var(--flag-ink);border-color:var(--flag-soft)}
+.tier.lean{background:transparent;color:var(--flag);border-color:var(--flag)}
+.tier.pass{background:transparent;color:var(--ink-3);border-color:var(--line)}
+.res{display:inline-block;padding:2px 7px;border-radius:2px;font:600 11px/1.5 "Public Sans",sans-serif}
+.res.Win{background:var(--good-soft);color:var(--good)}
+.res.Loss{background:var(--bad-soft);color:var(--bad)}
+.res.Push{background:var(--surface-2);color:var(--ink-2)}
+.res.Pending{background:var(--flag-soft);color:var(--flag-ink)}
+.res.Void{background:var(--surface-2);color:var(--ink-3)}
+
+/* -------------------------------------------------------------------- cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);
+  border-top:3px solid var(--flag);padding:15px 16px 14px;display:flex;flex-direction:column;gap:10px}
+.card.tier-good{border-top-color:var(--flag-soft)}
+.card.tier-lean{border-top-color:var(--line)}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.card h3{margin:0;font:600 15px/1.3 "Public Sans",sans-serif}
+.card h3 small{display:block;font-weight:400;color:var(--ink-3);font-size:11.5px;margin-top:2px}
+.card .bigpick{font-family:"IBM Plex Mono",monospace;font-size:19px;font-weight:600;letter-spacing:-.01em}
+.card .bigpick span{font-size:14px;color:var(--ink-2);margin-left:6px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.grid4 div{min-width:0}
+.grid4 .k{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.grid4 .v{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:14px;font-weight:600;margin-top:2px}
+.why{font-size:12.5px;color:var(--ink-2);line-height:1.5;border-top:1px solid var(--line);padding-top:10px}
+.why b{color:var(--ink);font-weight:600}
+
+/* -------------------------------------------------------------------- misc */
+.demo{background:var(--flag-soft);color:var(--flag-ink);border-bottom:1px solid var(--line);
+  padding:9px 20px;font-size:12.5px;text-align:center;line-height:1.5}
+.demo b{font-weight:700}
+.note{border:1px solid var(--line);border-left:3px solid var(--cool);background:var(--surface);
+  padding:13px 15px;font-size:13px;color:var(--ink-2);line-height:1.55;box-shadow:var(--shadow)}
+.note b{color:var(--ink)}
+.empty{border:1px dashed var(--line);padding:38px 20px;text-align:center;color:var(--ink-3);font-size:14px}
+.two{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:start}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+.curve{width:100%;height:150px;display:block}
+.bar{height:6px;background:var(--surface-2);border-radius:100px;overflow:hidden;margin-top:5px}
+.bar i{display:block;height:100%;background:var(--cool)}
+footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
+  color:var(--ink-3);font-size:12px;line-height:1.6}
+footer b{color:var(--ink-2)}
+@media (prefers-reduced-motion:no-preference){
+  .panel{animation:fade .22s ease-out}
+  @keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+}
+@media (max-width:640px){
+  .wrap,.mast-in,.kpis,nav.tabs{padding-left:14px;padding-right:14px}
+  .kpi .v{font-size:18px}
+}
+</style>
+</head>
+<body>
+
+<div id="demobar" hidden></div>
+<header class="mast">
+  <div class="mast-in">
+    <div class="brand">
+      <h1>NCAAF Edge Desk</h1>
+      <p class="sub" id="seasonline">College football model &middot; loading</p>
+    </div>
+    <div class="mast-right">
+      <div class="stamp" id="stamp">&nbsp;</div>
+      <button class="iconbtn" id="themebtn" type="button" title="Switch theme">Theme</button>
+      <button class="iconbtn" id="reload" type="button" title="Re-read the data files">Reload</button>
+    </div>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+</header>
+
+<main class="wrap">
+  <section id="p-best" class="panel" role="tabpanel"></section>
+  <section id="p-board" class="panel" role="tabpanel" hidden></section>
+  <section id="p-ledger" class="panel" role="tabpanel" hidden></section>
+  <section id="p-ratings" class="panel" role="tabpanel" hidden></section>
+  <section id="p-health" class="panel" role="tabpanel" hidden></section>
+
+  <footer>
+    <b>How to read this.</b> Edge is the model's probability minus the break-even probability of the price on offer &mdash; a 5% edge on a &minus;110 line means the model thinks the bet wins 57.4% of the time where the price only needs 52.4%. Tiers are edge thresholds, scaled up when the model has thin data on a matchup, so an early-season number has to be bigger to earn the same label.<br>
+    <b>Nothing here is a guarantee.</b> The model is one opinion priced against a market that is very good at its job. Check the Model Health tab before trusting a number: if the calibration table says a 60% pick has been winning 45% of the time, the tiers are decoration. Bet only what you can afford to lose.
+  </footer>
+</main>
+
+<script>
+"use strict";
+/* ===================================================================== data */
+const DATA_BASE = (() => {
+  const q = new URLSearchParams(location.search).get("data");
+  if (q) return q.replace(/\/?$/, "/");
+  return "./data/";
+})();
+const FILES = ["meta", "summary", "board", "ledger", "ratings"];
+const S = { meta:null, summary:null, board:[], ledger:[], ratings:[], tab:"best",
+            filters:{tier:"PLAYS", market:"ALL", q:""}, sort:{key:"rating", dir:-1} };
+
+async function load(){
+  if (window.__NCAAF_DATA__){ Object.assign(S, window.__NCAAF_DATA__); return true; }
+  try{
+    const res = await Promise.all(FILES.map(f =>
+      fetch(DATA_BASE + f + ".json", {cache:"no-store"}).then(r => r.ok ? r.json() : null)));
+    FILES.forEach((f,i) => { if (res[i] !== null) S[f] = res[i]; });
+    return !!S.meta;
+  }catch(e){ return false; }
+}
+
+/* ================================================================= helpers */
+const cfg = () => (S.meta && S.meta.settings) || {};
+const sym = () => (cfg().currency_symbol || "$");
+const pct = (v,d=1) => v === null || v === undefined || isNaN(v) ? "—" : (v*100).toFixed(d) + "%";
+const sgn = (v,d=1) => v === null || v === undefined || isNaN(v) ? "—" : (v>=0?"+":"") + (v*100).toFixed(d) + "%";
+const money = v => v === null || v === undefined || isNaN(v) ? "—" :
+  (v<0?"−":"") + sym() + Math.abs(v).toFixed(2);
+const price = v => v === null || v === undefined ? "—" : (v>0 ? "+"+v : ""+v);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TIERCLS = {"BEST BET":"best","GOOD":"good","LEAN":"lean","PASS":"pass"};
+const RANK = {"BEST BET":0,"GOOD":1,"LEAN":2,"PASS":3};
+
+function when(iso){
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d)) return String(iso).slice(0,10);
+  return d.toLocaleString(undefined,{weekday:"short",month:"short",day:"numeric",
+    hour:"numeric",minute:"2-digit"});
+}
+function day(iso){
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d) ? String(iso).slice(0,10)
+    : d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+}
+function ago(iso){
+  if (!iso) return "—";
+  const mins = Math.round((Date.now() - new Date(iso).getTime())/60000);
+  if (!isFinite(mins)) return "—";
+  if (mins < 2) return "just now";
+  if (mins < 60) return mins + " min ago";
+  const h = Math.round(mins/60);
+  return h < 24 ? h + (h===1?" hour ago":" hours ago") : Math.round(h/24) + "d ago";
+}
+
+/* ==================================================================== chrome */
+function renderStamp(){
+  const m = S.meta || {};
+  const bar = document.getElementById("demobar");
+  if (m.demo){
+    bar.hidden = false;
+    bar.className = "demo";
+    bar.innerHTML = "<b>Preview with simulated data.</b> Every game, line and result below was generated to show the layout — the teams are real, the numbers are not. Point this page at your own feed and it fills with live ESPN data.";
+  } else { bar.hidden = true; bar.className = ""; }
+  document.getElementById("seasonline").textContent =
+    `${m.season || ""} season · home field ${m.home_field_advantage ?? "—"} pts · league avg ${m.league_avg_points ?? "—"} pts/team`;
+  document.getElementById("stamp").innerHTML =
+    `updated <b>${esc(ago(m.generated_at))}</b><br>${esc(m.games_final ?? 0)} games final · ${esc(m.games_upcoming ?? 0)} upcoming`;
+}
+
+function renderKpis(){
+  const s = S.summary || {};
+  const plays = S.board.filter(b => b.tier !== "PASS");
+  const best = plays.filter(b => b.tier === "BEST BET").length;
+  const cls = v => v === null || v === undefined ? "" : (v > 0 ? "pos" : v < 0 ? "neg" : "");
+  const rec = `${s.wins||0}–${s.losses||0}` + (s.pushes ? `–${s.pushes}` : "");
+  const k = [
+    ["Bankroll", money(s.current_bankroll), `from ${money(s.starting_bankroll)}`, cls((s.current_bankroll||0)-(s.starting_bankroll||0))],
+    ["Profit / Loss", money(s.pnl), `${money(s.staked)} staked`, cls(s.pnl)],
+    ["ROI", sgn(s.roi), `${s.settled||0} settled`, cls(s.roi)],
+    ["Record", rec, s.win_rate === null || s.win_rate === undefined ? "no settled bets" : pct(s.win_rate) + " win rate", ""],
+    ["Avg CLV", sgn(s.avg_clv,2), s.clv_positive_rate === null || s.clv_positive_rate === undefined ? "needs graded bets" : pct(s.clv_positive_rate,0) + " beat the close", cls(s.avg_clv)],
+    ["Live Plays", String(plays.length), `${best} best bet${best===1?"":"s"}`, plays.length ? "flagc" : ""],
+    ["Pending", String(s.pending || 0), "awaiting results", ""],
+  ];
+  document.getElementById("kpis").innerHTML = k.map(([a,b,c,cl]) =>
+    `<div class="kpi"><div class="k">${esc(a)}</div><div class="v ${cl}">${esc(b)}</div><div class="m">${esc(c)}</div></div>`).join("");
+}
+
+const TABS = [
+  ["best","Best Bets", () => S.board.filter(b => b.tier !== "PASS").length],
+  ["board","Full Board", () => S.board.length],
+  ["ledger","Bet Ledger", () => S.ledger.length],
+  ["ratings","Power Ratings", () => S.ratings.length],
+  ["health","Model Health", () => null],
+];
+function renderTabs(){
+  document.getElementById("tabs").innerHTML = TABS.map(([id,label,cnt]) => {
+    const n = cnt();
+    return `<button role="tab" data-tab="${id}" aria-selected="${S.tab===id}" aria-controls="p-${id}">${esc(label)}${n===null?"":`<span class="cnt">${n}</span>`}</button>`;
+  }).join("");
+  document.getElementById("tabs").querySelectorAll("button").forEach(b =>
+    b.onclick = () => { S.tab = b.dataset.tab; renderTabs(); renderPanels(); });
+  TABS.forEach(([id]) => document.getElementById("p-"+id).hidden = (S.tab !== id));
+}
+</script>
+<script>
+/* ================================================================= panels */
+function why(b){
+  const p = b.projection || {};
+  const lm = b.line_move || {};
+  const bits = [];
+  if (b.market === "ATS")
+    bits.push(`Model projects <b>${p.mu >= 0 ? "home by " + p.mu.toFixed(1) : "away by " + Math.abs(p.mu).toFixed(1)}</b> against a line of ${b.line > 0 ? "+" : ""}${b.line}.`);
+  else if (b.market === "TOTAL")
+    bits.push(`Model projects <b>${p.proj_total} points</b> (${p.proj_away_pts}–${p.proj_home_pts}) against a total of ${b.line}.`);
+  else
+    bits.push(`Model projects <b>${p.mu >= 0 ? "home by " + p.mu.toFixed(1) : "away by " + Math.abs(p.mu).toFixed(1)}</b>.`);
+  bits.push(`It gives this side <b>${pct(b.model_prob)}</b>; the de-vigged market says ${pct(b.market_fair_prob)} and the price needs ${pct(b.breakeven)}.`);
+  if (b.push_prob > 0.02) bits.push(`Push chance <b>${pct(b.push_prob)}</b>.`);
+  if (lm.spread !== null && lm.spread !== undefined && Math.abs(lm.spread) >= 0.5)
+    bits.push(`Spread has moved <b>${lm.spread > 0 ? "+" : ""}${lm.spread}</b> since it opened at ${lm.opened_spread}.`);
+  if (lm.total !== null && lm.total !== undefined && Math.abs(lm.total) >= 0.5)
+    bits.push(`Total has moved <b>${lm.total > 0 ? "+" : ""}${lm.total}</b> since opening at ${lm.opened_total}.`);
+  if (b.confidence !== null && b.confidence < 0.8)
+    bits.push(`Confidence is <b>${pct(b.confidence,0)}</b> — thin data on these teams, so the bar for a tier is raised.`);
+  return bits.join(" ");
+}
+
+function stake(b){
+  const bk = cfg().bankroll || {};
+  const s = S.summary || {};
+  const bankroll = bk.size_off === "starting" ? (s.starting_bankroll || 0) : (s.current_bankroll || 0);
+  const dec = b.price > 0 ? 1 + b.price/100 : 1 + 100/(-b.price);
+  const p = Math.min(b.model_prob, (cfg().model||{}).max_model_prob ?? 0.85);
+  let f = ((p*(dec-1)) - (1-p)) / (dec-1);
+  f = Math.max(0, f) * (bk.kelly_fraction ?? 0.25);
+  f = Math.min(f, bk.max_stake_pct ?? 0.05);
+  const step = bk.round_stake_to || 0.5;
+  const raw = f * bankroll;
+  const v = step > 0 ? Math.round(raw/step)*step : raw;
+  return v < (bk.min_stake || 0) ? 0 : v;
+}
+
+function renderBest(){
+  const plays = S.board.filter(b => b.tier !== "PASS")
+    .sort((a,b) => RANK[a.tier]-RANK[b.tier] || b.edge-a.edge);
+  const el = document.getElementById("p-best");
+  let h = `<div class="panel-head"><div><h2>Best Bets</h2>
+    <p>Everything the model currently rates above a pass, strongest first. One play per game — taking a team's spread and its moneyline is close to taking the same bet twice, so only the better angle survives.</p></div></div>`;
+  if (!plays.length){
+    h += `<div class="empty">No qualified plays right now.<br><span style="font-size:12.5px">Either no games are on the board yet, the book hasn't posted numbers, or the model simply agrees with the market. Agreeing with the market is the normal state of affairs — a week with no bets is a working week.</span></div>`;
+    el.innerHTML = h; return;
+  }
+  h += `<div class="cards">` + plays.map(b => {
+    const tc = TIERCLS[b.tier];
+    const st = stake(b);
+    return `<article class="card tier-${tc}">
+      <div class="card-top">
+        <h3>${esc(b.matchup)}<small>${esc(when(b.game_date))}${b.week?" · Week "+b.week:""}${b.book?" · "+esc(b.book):""}</small></h3>
+        <span class="tier ${tc}">${esc(b.tier)}</span>
+      </div>
+      <div class="bigpick">${esc(b.pick)}<span>${esc(price(b.price))}</span></div>
+      <div class="grid4">
+        <div><div class="k">Edge</div><div class="v flagc">${sgn(b.edge)}</div></div>
+        <div><div class="k">Model</div><div class="v">${pct(b.model_prob)}</div></div>
+        <div><div class="k">EV</div><div class="v ${b.ev>0?"pos":"neg"}">${sgn(b.ev)}</div></div>
+        <div><div class="k">Stake</div><div class="v">${st ? money(st) : "—"}</div></div>
+      </div>
+      <div class="why">${why(b)}</div>
+    </article>`;
+  }).join("") + `</div>`;
+  el.innerHTML = h;
+}
+
+function renderBoard(){
+  const el = document.getElementById("p-board");
+  const f = S.filters;
+  const rows = S.board.filter(b => {
+    if (f.tier === "PLAYS" && b.tier === "PASS") return false;
+    if (f.tier !== "ALL" && f.tier !== "PLAYS" && b.tier !== f.tier) return false;
+    if (f.market !== "ALL" && b.market !== f.market) return false;
+    if (f.q && !(b.matchup + " " + b.pick).toLowerCase().includes(f.q.toLowerCase())) return false;
+    return true;
+  });
+  const tierBtns = ["PLAYS","ALL","BEST BET","GOOD","LEAN","PASS"];
+  const mktBtns = [["ALL","All markets"],["ATS","Spread"],["ML","Moneyline"],["TOTAL","Total"]];
+  let h = `<div class="panel-head"><div><h2>Full Board</h2>
+    <p>Every market on every upcoming game, priced against the book. Passes are shown too — a model you only see when it likes something is a model you cannot audit.</p></div></div>
+    <div class="filters">
+      ${tierBtns.map(t => `<button class="chipbtn" data-tier="${esc(t)}" aria-pressed="${f.tier===t}">${esc(t==="PLAYS"?"Plays only":t)}</button>`).join("")}
+      <span style="width:10px"></span>
+      ${mktBtns.map(([v,l]) => `<button class="chipbtn" data-mkt="${v}" aria-pressed="${f.market===v}">${esc(l)}</button>`).join("")}
+      <span class="spacer"></span>
+      <input class="search" id="q" placeholder="Filter by team…" value="${esc(f.q)}">
+    </div>`;
+  if (!rows.length){
+    h += `<div class="empty">Nothing matches those filters.</div>`;
+  } else {
+    h += `<div class="tablewrap"><table><thead><tr>
+      <th>Tier</th><th>Game</th><th>Mkt</th><th>Pick</th><th class="r">Price</th>
+      <th class="r">Model</th><th class="r">Fair</th><th class="r">Break-even</th>
+      <th class="r">Edge</th><th class="r">EV</th><th class="r">Stake</th>
+      <th class="r">Conf.</th><th class="r">Move</th></tr></thead><tbody>` +
+      rows.map(b => {
+        const tc = TIERCLS[b.tier];
+        const lm = b.line_move || {};
+        const mv = b.market === "TOTAL" ? lm.total : (b.market === "ATS" ? lm.spread : null);
+        const st = stake(b);
+        return `<tr>
+          <td class="stripe s-${tc}"><span class="tier ${tc}">${esc(b.tier)}</span></td>
+          <td class="matchup">${esc(b.matchup)}<small>${esc(day(b.game_date))}${b.week?" · Wk "+b.week:""}</small></td>
+          <td class="num" style="font-size:12px;color:var(--ink-3)">${esc(b.market)}</td>
+          <td class="pick">${esc(b.pick)}</td>
+          <td class="r num">${esc(price(b.price))}</td>
+          <td class="r num">${pct(b.model_prob)}</td>
+          <td class="r num" style="color:var(--ink-3)">${pct(b.market_fair_prob)}</td>
+          <td class="r num" style="color:var(--ink-3)">${pct(b.breakeven)}</td>
+          <td class="r num" style="font-weight:600;color:${b.edge>0?"var(--flag)":"var(--ink-3)"}">${sgn(b.edge)}</td>
+          <td class="r num ${b.ev>0?"pos":"neg"}">${sgn(b.ev)}</td>
+          <td class="r num">${b.tier!=="PASS"&&st?money(st):"—"}</td>
+          <td class="r num" style="color:var(--ink-3)">${b.confidence===null||b.confidence===undefined?"—":pct(b.confidence,0)}</td>
+          <td class="r num" style="color:var(--ink-3)">${mv===null||mv===undefined?"—":(mv>0?"+":"")+mv}</td>
+        </tr>`;
+      }).join("") + `</tbody></table></div>
+      <p style="color:var(--ink-3);font-size:12px;margin-top:10px">${rows.length} of ${S.board.length} lines. <b>Fair</b> is the market's own opinion with the vig removed; <b>break-even</b> is what the price you'd actually pay requires. Edge is measured against break-even.</p>`;
+  }
+  el.innerHTML = h;
+  el.querySelectorAll("[data-tier]").forEach(b => b.onclick = () => { S.filters.tier = b.dataset.tier; renderBoard(); });
+  el.querySelectorAll("[data-mkt]").forEach(b => b.onclick = () => { S.filters.market = b.dataset.mkt; renderBoard(); });
+  const q = el.querySelector("#q");
+  if (q) q.oninput = () => { S.filters.q = q.value; const pos = q.selectionStart; renderBoard();
+    const n = document.querySelector("#q"); if (n){ n.focus(); n.setSelectionRange(pos,pos); } };
+}
+
+function sparkline(curve, start){
+  if (!curve || curve.length < 2) return `<div class="empty" style="padding:26px">The bankroll curve appears once bets start settling.</div>`;
+  const pts = [{bankroll:start}].concat(curve);
+  const vals = pts.map(p => p.bankroll);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const pad = (max-min)*0.12 || 5;
+  const lo = min-pad, hi = max+pad;
+  const W = 600, H = 150;
+  const x = i => (i/(pts.length-1))*W;
+  const y = v => H - ((v-lo)/(hi-lo))*H;
+  const line = pts.map((p,i) => `${i?"L":"M"}${x(i).toFixed(1)},${y(p.bankroll).toFixed(1)}`).join("");
+  const area = line + `L${W},${H}L0,${H}Z`;
+  const last = pts[pts.length-1].bankroll;
+  const up = last >= start;
+  const col = up ? "var(--good)" : "var(--bad)";
+  return `<svg class="curve" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Bankroll over time">
+    <line x1="0" x2="${W}" y1="${y(start).toFixed(1)}" y2="${y(start).toFixed(1)}"
+      stroke="var(--line)" stroke-width="1" stroke-dasharray="4 4"></line>
+    <path d="${area}" fill="${col}" opacity=".10"></path>
+    <path d="${line}" fill="none" stroke="${col}" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+    <circle cx="${W}" cy="${y(last).toFixed(1)}" r="3.5" fill="${col}"></circle>
+  </svg>`;
+}
+
+function renderLedger(){
+  const el = document.getElementById("p-ledger");
+  const s = S.summary || {};
+  const L = S.ledger || [];
+  let h = `<div class="panel-head"><div><h2>Bet Ledger</h2>
+    <p>Every bet the model has ever qualified, logged at the number it was qualified at and graded once the game finished. Bets are never re-priced after the fact — that is the only way the record below means anything.</p></div></div>`;
+
+  h += `<div class="two"><div>
+    <div class="tablewrap" style="padding:16px 18px 6px">
+      <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:12px">Bankroll</div>
+      ${sparkline(s.curve, s.starting_bankroll || 0)}
+      <p style="color:var(--ink-3);font-size:12px;margin:8px 0 12px">Dashed line is the starting bankroll of ${money(s.starting_bankroll)}.</p>
+    </div></div><div>`;
+
+  const byMkt = s.by_market || {}, byTier = s.by_tier || {};
+  const blk = (title, obj, order) => {
+    const keys = order ? order.filter(k => obj[k]) : Object.keys(obj);
+    if (!keys.length) return "";
+    return `<div class="tablewrap" style="margin-bottom:14px"><table style="min-width:0">
+      <thead><tr><th>${esc(title)}</th><th class="r">N</th><th class="r">W–L–P</th><th class="r">P/L</th><th class="r">ROI</th></tr></thead>
+      <tbody>${keys.map(k => {
+        const r = obj[k];
+        return `<tr><td style="font-weight:600">${esc(k)}</td>
+          <td class="r num">${r.bets}</td>
+          <td class="r num">${r.wins}–${r.losses}${r.pushes?"–"+r.pushes:""}</td>
+          <td class="r num ${r.pnl>0?"pos":r.pnl<0?"neg":""}">${money(r.pnl)}</td>
+          <td class="r num ${r.roi>0?"pos":r.roi<0?"neg":""}">${sgn(r.roi)}</td></tr>`;
+      }).join("")}</tbody></table></div>`;
+  };
+  h += blk("By market", byMkt, ["ATS","ML","TOTAL"]) + blk("By tier", byTier, ["BEST BET","GOOD","LEAN"]);
+  if (!Object.keys(byMkt).length) h += `<div class="note">Breakdowns by market and tier appear once bets settle. Tier ROI is the one to watch: if <b>LEAN</b> is out-earning <b>BEST BET</b>, the thresholds are mislabelled and want retuning in <span class="mono">config/settings.json</span>.</div>`;
+  h += `</div></div>`;
+
+  if (!L.length){
+    h += `<div class="empty" style="margin-top:18px">The ledger is empty. It fills itself the first time the model qualifies a bet.</div>`;
+  } else {
+    h += `<div class="tablewrap" style="margin-top:18px"><table><thead><tr>
+      <th>Date</th><th>Game</th><th>Pick</th><th class="r">Price</th><th class="r">Stake</th>
+      <th>Result</th><th class="r">P/L</th><th class="r">Edge</th><th>Tier</th>
+      <th class="r">Close</th><th class="r">CLV</th></tr></thead><tbody>` +
+      L.map(b => `<tr>
+        <td class="num" style="white-space:nowrap;font-size:12px;color:var(--ink-3)">${esc(day(b.game_date))}</td>
+        <td class="matchup">${esc(b.matchup)}${b.final_score?`<small>${esc(b.final_score)}</small>`:""}</td>
+        <td class="pick">${esc(b.pick)}</td>
+        <td class="r num">${esc(price(b.price))}</td>
+        <td class="r num">${money(b.stake)}</td>
+        <td><span class="res ${esc(b.result)}">${esc(b.result)}</span></td>
+        <td class="r num ${b.pnl>0?"pos":b.pnl<0?"neg":""}">${b.pnl===null||b.pnl===undefined?"—":money(b.pnl)}</td>
+        <td class="r num">${sgn(b.edge)}</td>
+        <td><span class="tier ${TIERCLS[b.tier]}">${esc(b.tier)}</span></td>
+        <td class="r num" style="color:var(--ink-3)">${b.closing_line===null||b.closing_line===undefined?(b.closing_price?esc(price(b.closing_price)):"—"):esc(b.closing_line)}</td>
+        <td class="r num ${b.clv_prob>0?"pos":b.clv_prob<0?"neg":""}">${b.clv_prob===null||b.clv_prob===undefined?"—":sgn(b.clv_prob,1)}</td>
+      </tr>`).join("") + `</tbody></table></div>`;
+  }
+  el.innerHTML = h;
+}
+
+function renderRatings(){
+  const el = document.getElementById("p-ratings");
+  const R = (S.ratings || []).slice();
+  const k = S.sort.key, dir = S.sort.dir;
+  R.sort((a,b) => {
+    const av = k === "ats" ? (a.ats && a.ats.pct !== null ? a.ats.pct : -1) : a[k];
+    const bv = k === "ats" ? (b.ats && b.ats.pct !== null ? b.ats.pct : -1) : b[k];
+    if (typeof av === "string") return dir * av.localeCompare(bv);
+    return dir * ((av ?? -999) - (bv ?? -999));
+  });
+  const th = (key,label,cls="") =>
+    `<th class="sortable ${cls}" data-sort="${key}">${esc(label)}${k===key?(dir<0?" ↓":" ↑"):""}</th>`;
+  let h = `<div class="panel-head"><div><h2>Power Ratings</h2>
+    <p>Solved from results, not typed in. A rating is points better than an average FBS team on a neutral field, so the gap between two ratings is a projected margin. Early in the season these sit close to zero on purpose — with little evidence, the honest estimate is "average".</p></div></div>`;
+  if (!R.length){ el.innerHTML = h + `<div class="empty">Ratings appear after the first pipeline run.</div>`; return; }
+  h += `<div class="tablewrap"><table><thead><tr>
+    <th class="r" style="width:48px">#</th>${th("team","Team")}${th("rating","Rating","r")}
+    ${th("off","Offence","r")}${th("def","Defence","r")}${th("games","GP","r")}${th("ats","ATS L5","r")}
+    </tr></thead><tbody>` + R.map((r,i) => `<tr>
+      <td class="r num" style="color:var(--ink-3)">${i+1}</td>
+      <td style="font-weight:600">${esc(r.team)}</td>
+      <td class="r num" style="font-weight:600;color:${r.rating>0?"var(--good)":r.rating<0?"var(--bad)":""}">${r.rating>0?"+":""}${r.rating.toFixed(1)}</td>
+      <td class="r num">${r.off>0?"+":""}${(r.off??0).toFixed(1)}</td>
+      <td class="r num">${r.def>0?"+":""}${(r.def??0).toFixed(1)}</td>
+      <td class="r num" style="color:var(--ink-3)">${r.games||0}</td>
+      <td class="r num" style="color:var(--ink-3)">${r.ats?`${r.ats.w}–${r.ats.l}${r.ats.p?"–"+r.ats.p:""}`:"—"}</td>
+    </tr>`).join("") + `</tbody></table></div>
+    <p style="color:var(--ink-3);font-size:12px;margin-top:10px"><b>Offence</b> and <b>defence</b> are points per game above or below league average, opponent-adjusted; defence is stated so that positive is good. ATS record is shown as context only — the model deliberately does not bet on it, because a team's spread record is the market's residual and chasing it is chasing noise.</p>`;
+  el.innerHTML = h;
+  el.querySelectorAll("[data-sort]").forEach(t => t.onclick = () => {
+    const key = t.dataset.sort;
+    S.sort = { key, dir: S.sort.key === key ? -S.sort.dir : (key === "team" ? 1 : -1) };
+    renderRatings();
+  });
+}
+
+function renderHealth(){
+  const el = document.getElementById("p-health");
+  const s = S.summary || {};
+  const cal = s.calibration || [];
+  const m = S.meta || {};
+  const c = cfg();
+  let h = `<div class="panel-head"><div><h2>Model Health</h2>
+    <p>Whether the model deserves to be believed. Read this tab before the Best Bets tab.</p></div></div>`;
+
+  h += `<div class="two"><div><div class="tablewrap" style="padding:16px 18px">
+    <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px">Calibration</div>
+    <p style="font-size:13px;color:var(--ink-2);margin:0 0 12px;line-height:1.55">When the model says 60%, does it win 60%? Every settled bet, bucketed by the probability claimed.</p>`;
+  if (!cal.length){
+    h += `<div class="empty" style="padding:26px">Not enough settled bets yet. Expect this to say nothing useful until roughly 50 bets have graded, and nothing trustworthy until a few hundred.</div>`;
+  } else {
+    h += `<table style="min-width:0"><thead><tr><th>Claimed</th><th class="r">N</th><th class="r">Predicted</th><th class="r">Actual</th><th class="r">Gap</th></tr></thead><tbody>` +
+      cal.map(r => { const gap = r.actual - r.predicted; return `<tr>
+        <td class="num">${esc(r.bucket)}</td><td class="r num">${r.n}</td>
+        <td class="r num">${pct(r.predicted)}</td><td class="r num">${pct(r.actual)}</td>
+        <td class="r num ${gap>0?"pos":gap<0?"neg":""}">${sgn(gap)}</td></tr>`; }).join("") +
+      `</tbody></table>`;
+  }
+  h += `</div></div><div>`;
+
+  const brier = m.brier;
+  h += `<div class="tablewrap" style="padding:16px 18px;margin-bottom:14px">
+    <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px">Scorecard</div>
+    <table style="min-width:0"><tbody>
+      <tr><td>Brier score</td><td class="r num" style="font-weight:600">${brier ?? "—"}</td></tr>
+      <tr><td>Average CLV</td><td class="r num ${s.avg_clv>0?"pos":s.avg_clv<0?"neg":""}" style="font-weight:600">${sgn(s.avg_clv,2)}</td></tr>
+      <tr><td>Bets beating the close</td><td class="r num" style="font-weight:600">${s.clv_positive_rate===null||s.clv_positive_rate===undefined?"—":pct(s.clv_positive_rate,0)}</td></tr>
+      <tr><td>Settled bets</td><td class="r num" style="font-weight:600">${s.settled||0}</td></tr>
+    </tbody></table>
+    <p style="font-size:12.5px;color:var(--ink-2);margin:12px 0 0;line-height:1.55">
+      <b>Brier</b> measures probability accuracy — lower is better, 0.25 is what you'd score by guessing 50% every time.
+      <b>CLV</b> is the gap between the price you took and the price the market closed at. Over a few hundred bets it predicts profit far better than win rate does, because it is a much larger sample of a much less noisy quantity. Positive CLV with a losing record usually means variance; negative CLV with a winning record usually means luck about to run out.</p>
+  </div>`;
+
+  const mm = c.model || {}, tt = c.tiers || {}, bb = c.bankroll || {}, rr = c.ratings || {};
+  h += `<div class="tablewrap" style="padding:16px 18px">
+    <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px">Live settings</div>
+    <table style="min-width:0"><tbody>
+      ${[["Best Bet threshold",pct(tt.best_bet)],["Good threshold",pct(tt.good)],["Lean threshold",pct(tt.lean)],
+         ["Market blend",pct(mm.market_blend,0)],["Margin std dev",(mm.margin_sd??"—")+" pts"],["Total std dev",(mm.total_sd??"—")+" pts"],
+         ["Key numbers",mm.use_key_numbers?"on":"off"],["Kelly fraction",pct(bb.kelly_fraction,0)],
+         ["Max stake",pct(bb.max_stake_pct,0)+" of bankroll"],["Ridge lambda",rr.ridge_lambda??"—"],
+         ["Recency half-life",(rr.recency_halflife_games??"—")+" games"],["Solved home field",(m.home_field_advantage??"—")+" pts"]]
+        .map(([k,v]) => `<tr><td style="color:var(--ink-2)">${esc(k)}</td><td class="r num">${esc(v)}</td></tr>`).join("")}
+    </tbody></table></div></div></div>`;
+
+  h += `<div class="note" style="margin-top:18px"><b>What would tell you this model is broken.</b>
+    A calibration gap that stays negative across every bucket past 100 bets means the model is systematically overconfident — raise <span class="mono">market_blend</span>.
+    Average CLV sitting below zero means it is consistently getting worse numbers than the market closes at, which no amount of win rate can rescue.
+    Tier ROI running backwards — LEAN out-earning BEST BET — means the edge estimate is not ordering bets correctly, and the thresholds are cosmetic.
+    Any of the three is a reason to stop betting the model and go fix it.</div>`;
+  el.innerHTML = h;
+}
+
+function renderPanels(){
+  ({best:renderBest, board:renderBoard, ledger:renderLedger,
+    ratings:renderRatings, health:renderHealth}[S.tab] || renderBest)();
+  postHeight();
+}
+
+/* ============================================================ wix embedding */
+function postHeight(){
+  try{
+    const h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+    if (window.parent !== window) window.parent.postMessage({type:"setHeight", height:h}, "*");
+  }catch(e){/* cross-origin parent; harmless */}
+}
+
+/* ===================================================================== boot */
+function applyTheme(){
+  let t = null;
+  try{ t = localStorage.getItem("ncaaf-theme"); }catch(e){}
+  if (t) document.documentElement.setAttribute("data-theme", t);
+}
+document.getElementById("themebtn").onclick = () => {
+  const cur = document.documentElement.getAttribute("data-theme");
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try{ localStorage.setItem("ncaaf-theme", next); }catch(e){}
+};
+document.getElementById("reload").onclick = () => boot(true);
+
+async function boot(force){
+  applyTheme();
+  const ok = await load();
+  if (!ok){
+    document.getElementById("p-best").innerHTML =
+      `<div class="empty" style="margin-top:24px">Couldn't read the data files.<br>
+      <span style="font-size:12.5px">This page expects JSON at <span class="mono">${esc(DATA_BASE)}</span>.
+      If the page is embedded somewhere else, point it at your published feed with
+      <span class="mono">?data=https://YOURNAME.github.io/ncaaf-edge/data/</span>.</span></div>`;
+    document.getElementById("kpis").innerHTML = "";
+    renderTabs();
+    return;
+  }
+  renderStamp(); renderKpis(); renderTabs(); renderPanels();
+}
+boot();
+setInterval(() => { if (!window.__NCAAF_DATA__) boot(); }, 5*60*1000);
+window.addEventListener("resize", postHeight);
+</script>
+</body>
+</html>
