@@ -30,7 +30,7 @@
   "indoor": false,
   "neutral": true,
   "odds": {
-   "book": "DraftKings",
+   "book": "Draft Kings",
    "details": "TCU -7.5",
    "ml_away": null,
    "ml_home": null,
@@ -81,7 +81,7 @@
   "indoor": false,
   "neutral": false,
   "odds": {
-   "book": "DraftKings",
+   "book": "Draft Kings",
    "details": "USC -38.5",
    "ml_away": null,
    "ml_home": null,
@@ -132,7 +132,7 @@
   "indoor": false,
   "neutral": false,
   "odds": {
-   "book": "DraftKings",
+   "book": "Draft Kings",
    "details": "UVA -5.5",
    "ml_away": null,
    "ml_home": null,
@@ -183,7 +183,7 @@
   "indoor": true,
   "neutral": false,
   "odds": {
-   "book": "DraftKings",
+   "book": "Draft Kings",
    "details": "NDSU -7",
    "ml_away": null,
    "ml_home": null,
@@ -234,7 +234,7 @@
   "indoor": false,
   "neutral": false,
   "odds": {
-   "book": "DraftKings",
+   "book": "Draft Kings",
    "details": "EMU -8.5",
    "ml_away": null,
    "ml_home": null,
@@ -285,7 +285,7 @@
   "indoor": false,
   "neutral": false,
   "odds": {
-   "book": "DraftKings",
+   "book": "Draft Kings",
    "details": "STAN -5.5",
    "ml_away": null,
    "ml_home": null,
@@ -336,7 +336,7 @@
   "indoor": false,
   "neutral": false,
   "odds": {
-   "book": "DraftKings",
+   "book": "Draft Kings",
    "details": "FSU -31.5",
    "ml_away": null,
    "ml_home": null,
@@ -387,7 +387,7 @@
   "indoor": true,
   "neutral": false,
   "odds": {
-   "book": "DraftKings",
+   "book": "Draft Kings",
    "details": "UNLV -5.5",
    "ml_away": null,
    "ml_home": null,
