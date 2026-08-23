@@ -428,6 +428,61 @@ function stake(b){
   return v < (bk.min_stake || 0) ? 0 : v;
 }
 
+function renderWhyEmpty(){
+  // An empty board is ambiguous in the worst way: "the model looked and found
+  // nothing" and "the model was structurally prevented from having an opinion"
+  // look identical from outside. This says which one happened.
+  const d = (S.meta || {}).board_diagnosis;
+  if (!d){
+    return `<div class="empty">No qualified plays right now.<br><span style="font-size:12.5px">Either no games are on the board yet, the book hasn't posted numbers, or the model simply agrees with the market. Agreeing with the market is the normal state of affairs — a week with no bets is a working week.</span></div>`;
+  }
+  const w = d.window || {};
+  const broken = w.feasible === false;
+  let h = `<div class="empty" style="text-align:left;padding:20px 22px">
+    <div style="font-weight:600;color:var(--ink);margin-bottom:6px">No qualified plays right now.</div>
+    <div style="font-size:12.5px;margin-bottom:14px">${esc(d.headline||"")}.</div>`;
+
+  if (broken){
+    h += `<div style="background:var(--surface-2);border-left:3px solid var(--bad);padding:10px 12px;
+      border-radius:4px;font-size:12.5px;margin-bottom:14px">
+      <strong>This one is a configuration fault, not a quiet week.</strong> The edge a LEAN currently
+      requires (${pct(w.lean_edge_floor)}) implies a model/market disagreement of
+      ${pct(w.lean_requires_raw_gap)}, but the safety rail rejects anything above
+      ${pct(w.raw_gap_ceiling)}. The two overlap to zero, so nothing could qualify at any price.
+      Raise <code>guard_headroom</code> in settings.json.</div>`;
+  }
+
+  h += `<table style="font-size:12.5px;margin-bottom:14px"><tbody>
+    <tr><td style="color:var(--ink-3);padding-right:18px">Lines priced</td><td class="num">${d.priced_lines}</td></tr>
+    <tr><td style="color:var(--ink-3)">Model confidence</td><td class="num">${pct(w.confidence)}${w.thin_data?` <span style="color:var(--flag)">thin data</span>`:""}</td></tr>
+    <tr><td style="color:var(--ink-3)">Edge needed for a LEAN</td><td class="num">${pct(w.lean_edge_floor)}</td></tr>
+    <tr><td style="color:var(--ink-3)">Disagreement ceiling in force</td><td class="num">${pct(w.raw_gap_ceiling)}</td></tr>
+  </tbody></table>`;
+
+  const rs = Object.entries(d.reasons||{});
+  if (rs.length){
+    h += `<div style="font-size:12.5px;color:var(--ink-2);margin-bottom:6px">Why each line was passed on:</div>
+      <ul style="font-size:12.5px;color:var(--ink-3);margin:0 0 14px 16px">`
+      + rs.sort((a,b)=>b[1]-a[1]).map(([k,n]) => `<li>${n} × ${esc(k)}</li>`).join("") + `</ul>`;
+  }
+  if ((d.near_misses||[]).length){
+    h += `<div style="font-size:12.5px;color:var(--ink-2);margin-bottom:6px">Closest to qualifying:</div>
+      <div class="tablewrap"><table><thead><tr><th>Game</th><th>Pick</th>
+      <th class="r">Edge</th><th class="r">Needed</th><th class="r">Short by</th></tr></thead><tbody>`
+      + d.near_misses.map(m => `<tr><td class="matchup">${esc(m.matchup)}</td><td>${esc(m.pick)}</td>
+        <td class="r num">${sgn(m.edge)}</td><td class="r num">${pct(m.needed)}</td>
+        <td class="r num" style="color:var(--ink-3)">${pct(m.short_by)}</td></tr>`).join("")
+      + `</tbody></table></div>`;
+  }
+  if (!broken){
+    h += `<div style="font-size:12px;color:var(--ink-3);margin-top:14px;max-width:70ch">
+      Agreeing with the market is the normal state of affairs — most weeks, for most games, the honest
+      answer is no bet. A quiet board is only a problem if it stays quiet once the numbers above say a
+      play was actually reachable.</div>`;
+  }
+  return h + `</div>`;
+}
+
 function renderBest(){
   const plays = S.board.filter(b => b.tier !== "PASS")
     .sort((a,b) => RANK[a.tier]-RANK[b.tier] || b.edge-a.edge);
@@ -435,7 +490,7 @@ function renderBest(){
   let h = `<div class="panel-head"><div><h2>Best Bets</h2>
     <p>Everything the model currently rates above a pass, strongest first. One play per game — taking a team's spread and its moneyline is close to taking the same bet twice, so only the better angle survives.</p></div></div>`;
   if (!plays.length){
-    h += `<div class="empty">No qualified plays right now.<br><span style="font-size:12.5px">Either no games are on the board yet, the book hasn't posted numbers, or the model simply agrees with the market. Agreeing with the market is the normal state of affairs — a week with no bets is a working week.</span></div>`;
+    h += renderWhyEmpty();
     el.innerHTML = h; return;
   }
   h += `<div class="cards">` + plays.map(b => {
@@ -701,6 +756,12 @@ function renderHealth(){
   el.innerHTML = h;
 }
 
+function fcsTag(){
+  return ` <span title="Non-FBS opponent — shown, but never priced or bet" style="font-size:9.5px;`
+       + `letter-spacing:.06em;padding:1px 4px;border-radius:3px;vertical-align:middle;`
+       + `background:var(--surface-2);color:var(--flag);border:1px solid var(--rule)">FCS</span>`;
+}
+
 function renderSchedule(){
   const el = document.getElementById("p-schedule");
   const weeks = S.schedule || [];
@@ -708,22 +769,32 @@ function renderSchedule(){
     <p>The full season, however far out ESPN has announced it — not just the games close enough to have a market yet. A line only ever shows here once a book has actually posted it; a future week with no odds shows a dash, never an estimate.</p></div></div>`;
   if (!weeks.length){ el.innerHTML = h + `<div class="empty">Schedule appears after the first pipeline run.</div>`; return; }
 
-  if (S.schedWeek === null || !weeks.some(w => w.week === S.schedWeek)){
+  const key = w => `${w.week}|${w.slate||1}`;
+  if (S.schedWeek === null || !weeks.some(w => key(w) === S.schedWeek)){
     const firstOpen = weeks.find(w => w.completed < w.games);
-    S.schedWeek = (firstOpen || weeks[0]).week;
+    S.schedWeek = key(firstOpen || weeks[0]);
   }
   h += `<div class="filters">` + weeks.map(w => {
     const done = w.completed === w.games && w.games > 0;
     const dot = done ? "var(--good)" : (w.with_odds > 0 ? "var(--flag)" : "var(--ink-3)");
-    return `<button class="chipbtn" data-wk="${esc(w.week)}" aria-pressed="${S.schedWeek===w.week}"
+    return `<button class="chipbtn" data-wk="${esc(key(w))}" aria-pressed="${S.schedWeek===key(w)}"
       style="display:inline-flex;align-items:center;gap:6px">
       <span style="width:6px;height:6px;border-radius:50%;background:${dot};display:inline-block"></span>
-      Week ${esc(w.week)}</button>`;
+      ${esc(w.label || ("Week " + w.week))}</button>`;
   }).join("") + `</div>`;
 
-  const wk = weeks.find(w => w.week === S.schedWeek);
+  const wk = weeks.find(w => key(w) === S.schedWeek);
+  const fcsCount = wk.rows.filter(r => r.away_fcs || r.home_fcs).length;
   h += `<p style="color:var(--ink-3);font-size:12.5px;margin:-4px 0 12px">
-    ${wk.games} game${wk.games===1?"":"s"} · ${wk.with_odds} with a posted line · ${wk.completed} final</p>`;
+    ${wk.games} game${wk.games===1?"":"s"} · ${wk.with_odds} with a posted line · ${wk.completed} final${
+      fcsCount ? ` · <span style="color:var(--flag)">${fcsCount} vs non-FBS</span>` : ""}</p>`;
+  if (fcsCount){
+    h += `<p style="color:var(--ink-3);font-size:12px;margin:-8px 0 12px;max-width:70ch">
+      Games against an FCS opponent are listed, but the model never bets them and shows no edge for them.
+      An FCS team plays almost its whole season outside this feed, so it never earns a rating and would
+      silently inherit “average FBS team” — which is how a 54-point favourite once priced out as a coin flip.
+      Books rarely post these lines either, which is why most show a dash.</p>`;
+  }
   h += `<div class="tablewrap"><table><thead><tr>
     <th>Date</th><th>Matchup</th><th>Status</th><th class="r">Spread (home)</th>
     <th class="r">Total</th><th class="r">Away ML</th><th class="r">Home ML</th><th>Book</th>
@@ -735,7 +806,7 @@ function renderSchedule(){
         : `<span style="color:var(--ink-3)">${esc(r.status||"Scheduled")}</span>`;
       return `<tr>
         <td class="num" style="white-space:nowrap;color:var(--ink-3)">${esc(when(r.date))}</td>
-        <td class="matchup">${esc(r.away)} @ ${esc(r.home)}<small>${esc(r.away_name)} at ${esc(r.home_name)}</small></td>
+        <td class="matchup">${esc(r.away)}${r.away_fcs?fcsTag():""} @ ${esc(r.home)}${r.home_fcs?fcsTag():""}<small>${esc(r.away_name)} at ${esc(r.home_name)}</small></td>
         <td>${status}</td>
         <td class="r num">${r.spread_home===null||r.spread_home===undefined?"—":(r.spread_home>0?"+":"")+r.spread_home}</td>
         <td class="r num">${r.total===null||r.total===undefined?"—":r.total}</td>
