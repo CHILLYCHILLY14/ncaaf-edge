@@ -60,7 +60,12 @@ def simulate(seed: int = 11):
                 "odds": {"book": "DraftKings", "spread_home": book_spread,
                          "spread_price_home": -110, "spread_price_away": -110,
                          "total": book_total, "over_price": -110, "under_price": -110,
-                         "ml_home": round(ml_h), "ml_away": round(ml_a)},
+                         "ml_home": round(ml_h), "ml_away": round(ml_a),
+                         # Mirror the real parser: only markets with a line AND both
+                         # real prices count as verified, and the rest of the pipeline
+                         # keys off this. Without it the preview shows every game as
+                         # having no posted line.
+                         "verified_markets": ["ML", "ATS", "TOTAL"]},
             })
     return games, today
 
@@ -138,7 +143,8 @@ def main() -> int:
                  "home_field_advantage": round(hfa,2), "league_avg_points": round(league,1),
                  "games_final": sum(1 for g in games if g["completed"]),
                  "games_upcoming": sum(1 for g in games if not g["completed"]),
-                 "settings": cfg, "brier": L.brier(ledg), "demo": True},
+                 "settings": cfg, "brier": L.brier(ledg), "demo": True,
+                 "board_diagnosis": B.diagnose_board(board, cfg)},
         "board": [{**c, "line_move": store.line_move(lines, c["game_id"])} for c in board],
         "ledger": sorted(ledg.values(), key=lambda b: b.get("game_date") or "", reverse=True),
         "summary": {**summary, "calibration": L.calibration(ledg)},
@@ -149,7 +155,7 @@ def main() -> int:
                             "games": played.get(t,0), "ats": form.get(t)} for t in rat],
                           key=lambda r: -r["rating"]),
         "games": game_rows,
-        "schedule": B.build_schedule(game_rows),
+        "schedule": B.build_schedule(game_rows, fbs),
     }
 
     out = os.path.join(ROOT, "site", "data")
