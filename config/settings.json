@@ -65,6 +65,8 @@
     "_max_spread_projection_gap_note": "If the model-implied margin is more than this many points from the spread, treat it as a ratings blind spot instead of an edge. This matters most before current-season games have been played.",
     "max_total_projection_gap": 14.0,
     "_max_total_projection_gap_note": "Same safety rail for projected total versus posted total.",
+    "guard_headroom": 1.35,
+    "_guard_headroom_note": "A safety rail must never sit below the bar it is protecting. Edge rises with the raw model/market gap, so a confidence-scaled tier threshold is itself a minimum raw gap in disguise; if the ceiling below lands under that minimum, the two guards overlap to zero and NOTHING can qualify at any price. That is exactly what silenced the entire 2026 opening slate. This widens the ceiling, only when it has to, to sit 35% above whatever a LEAN currently requires. Set to 1.0 to disable and apply the ceilings literally.",
     "max_raw_market_prob_gap": 0.30,
     "_max_raw_market_prob_gap_note": "Reject extreme disagreements before market blending can make them look comfortably calibrated.",
     "thin_data_confidence_threshold": 0.50,
