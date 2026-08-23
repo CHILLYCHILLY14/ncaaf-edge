@@ -52,6 +52,7 @@ def open_bet(ledger: dict, cand: dict, bankroll: float, cfg: dict) -> bool:
         "ev_pct": round(cand.get("ev", 0.0), 4),
         "tier": cand["tier"],
         "confidence": cand.get("confidence"),
+        "odds_verified": cand.get("odds_verified") is True,
         "stake": stake,
         "bankroll_at_placement": round(bankroll, 2),
         "result": "Pending",

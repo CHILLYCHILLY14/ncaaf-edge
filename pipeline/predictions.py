@@ -51,6 +51,7 @@ def log_prediction(preds: dict, cand: dict) -> bool:
         "edge": round(cand["edge"], 4),
         "tier": cand["tier"],
         "confidence": cand.get("confidence"),
+        "odds_verified": cand.get("odds_verified") is True,
         "result": "Pending",
         "correct": None,
         "graded_at": None,

@@ -192,6 +192,30 @@ td.r,th.r{text-align:right}
 .curve{width:100%;height:150px;display:block}
 .bar{height:6px;background:var(--surface-2);border-radius:100px;overflow:hidden;margin-top:5px}
 .bar i{display:block;height:100%;background:var(--cool)}
+.sim-layout{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(360px,1.2fr);gap:18px;align-items:start}
+.sim-box{background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);padding:18px}
+.sim-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sim-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.sim-field.wide{grid-column:1/-1}
+.sim-field label{font:600 10.5px/1.25 "Public Sans",sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.sim-field select,.sim-field input{width:100%;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:var(--radius);padding:9px 10px;font:500 13px/1.25 "Public Sans",sans-serif}
+.sim-field select:focus-visible,.sim-field input:focus-visible{outline:2px solid var(--cool);outline-offset:1px}
+.sim-check{grid-column:1/-1;display:flex;align-items:center;gap:8px;color:var(--ink-2);font-size:13px}
+.sim-check input{accent-color:var(--flag);width:16px;height:16px}
+.sim-run{grid-column:1/-1;border:1px solid var(--flag);background:var(--flag);color:var(--on-flag);border-radius:var(--radius);padding:11px 14px;font:700 13px/1 "Public Sans",sans-serif;cursor:pointer}
+.sim-run:hover{filter:brightness(.96)}
+.sim-score{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.sim-score .score{font:600 clamp(21px,3vw,30px)/1.2 "IBM Plex Mono",monospace;letter-spacing:-.03em}
+.sim-score .meta{color:var(--ink-3);font-size:12px;text-align:right}
+.sim-probs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.sim-prob{border:1px solid var(--line);padding:12px}
+.sim-prob .k{font:600 10px/1.25 "Public Sans",sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.sim-prob .v{font:600 21px/1.2 "IBM Plex Mono",monospace;margin-top:4px}
+.sim-meter{height:6px;background:var(--surface-2);overflow:hidden;margin-top:8px;border-radius:20px}
+.sim-meter i{display:block;height:100%;background:var(--cool)}
+.sim-readout{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-2);line-height:1.6}
+@media (max-width:850px){.sim-layout{grid-template-columns:1fr}}
+@media (max-width:520px){.sim-form,.sim-probs{grid-template-columns:1fr}.sim-field.wide,.sim-check,.sim-run{grid-column:1}}
 footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
   color:var(--ink-3);font-size:12px;line-height:1.6}
 footer b{color:var(--ink-2)}
@@ -228,6 +252,7 @@ footer b{color:var(--ink-2)}
   <section id="p-best" class="panel" role="tabpanel"></section>
   <section id="p-board" class="panel" role="tabpanel" hidden></section>
   <section id="p-schedule" class="panel" role="tabpanel" hidden></section>
+  <section id="p-sim" class="panel" role="tabpanel" hidden></section>
   <section id="p-ledger" class="panel" role="tabpanel" hidden></section>
   <section id="p-ratings" class="panel" role="tabpanel" hidden></section>
   <section id="p-history" class="panel" role="tabpanel" hidden></section>
@@ -236,10 +261,11 @@ footer b{color:var(--ink-2)}
   <footer>
     <b>How to read this.</b> Edge is the model's probability minus the break-even probability of the price on offer &mdash; a 5% edge on a &minus;110 line means the model thinks the bet wins 57.4% of the time where the price only needs 52.4%. Tiers are edge thresholds, scaled up when the model has thin data on a matchup, so an early-season number has to be bigger to earn the same label.<br>
     <b>Nothing here is a guarantee.</b> The model is one opinion priced against a market that is very good at its job. Check Model History before trusting a number — it tracks every prediction the model has ever made, not just the ones that became bets, which is the far larger and less biased sample. Bet only what you can afford to lose.<br>
-    <b>One book, always.</b> ESPN's free feed never carries more than a single sportsbook's line per game — there's no line shopping available without a paid odds API, so every price shown is whatever that one book posted.
+    <b>One book, always.</b> ESPN's free feed never carries more than a single sportsbook's line per game — there's no line shopping available without a paid odds API, so every price shown is whatever that one book posted. A market is actionable only when ESPN supplies both real side prices; the model never fills a missing price with a placeholder.
   </footer>
 </main>
 
+<script src="sim.js"></script>
 <script>
 "use strict";
 /* ===================================================================== data */
@@ -248,9 +274,10 @@ const DATA_BASE = (() => {
   if (q) return q.replace(/\/?$/, "/");
   return "./data/";
 })();
-const FILES = ["meta", "summary", "board", "ledger", "ratings", "model_history", "schedule"];
-const S = { meta:null, summary:null, board:[], ledger:[], ratings:[], model_history:null, schedule:[], tab:"best",
-            filters:{tier:"PLAYS", market:"ALL", q:""}, sort:{key:"rating", dir:-1}, schedWeek:null };
+const FILES = ["meta", "summary", "board", "ledger", "ratings", "model_history", "schedule", "games"];
+const S = { meta:null, summary:null, board:[], ledger:[], ratings:[], model_history:null, schedule:[], games:[], tab:"best",
+            filters:{tier:"PLAYS", market:"ALL", q:""}, sort:{key:"rating", dir:-1}, schedWeek:null,
+            sim:{ready:false,gameId:"",away:"",home:"",neutral:false,spread:"",total:"",iterations:10000} };
 
 async function load(){
   if (window.__NCAAF_DATA__){ Object.assign(S, window.__NCAAF_DATA__); return true; }
@@ -302,7 +329,18 @@ function ago(iso){
 function renderStamp(){
   const m = S.meta || {};
   const bar = document.getElementById("demobar");
-  if (m.demo){
+  const health = m.odds_health || {};
+  const repair = m.data_repair || {};
+  const repaired = (repair.unverified_pending_bets_removed||0) + (repair.unverified_pending_predictions_removed||0);
+  if (health.healthy === false){
+    bar.hidden = false;
+    bar.className = "demo";
+    bar.innerHTML = `<b>Odds integrity warning.</b> ${esc(health.message||"Plays are disabled until the feed is checked.")}`;
+  } else if (repaired > 0){
+    bar.hidden = false;
+    bar.className = "demo";
+    bar.innerHTML = `<b>Odds repair applied.</b> Removed ${esc(repair.unverified_pending_bets_removed||0)} pending bets and ${esc(repair.unverified_pending_predictions_removed||0)} pending predictions created from unverified placeholder prices.`;
+  } else if (m.demo){
     bar.hidden = false;
     bar.className = "demo";
     bar.innerHTML = "<b>Preview with simulated data.</b> Every game, line and result below was generated to show the layout — the teams are real, the numbers are not. Point this page at your own feed and it fills with live ESPN data.";
@@ -336,6 +374,7 @@ const TABS = [
   ["best","Best Bets", () => S.board.filter(b => b.tier !== "PASS").length],
   ["board","Full Board", () => S.board.length],
   ["schedule","Schedule", () => S.schedule.reduce((n,w) => n + w.games, 0)],
+  ["sim","Simulator", () => null],
   ["ledger","Bet Ledger", () => S.ledger.length],
   ["ratings","Power Ratings", () => S.ratings.length],
   ["history","Model History", () => (S.model_history||{}).total_logged ?? null],
@@ -448,7 +487,7 @@ function renderBoard(){
       <th>Tier</th><th>Game</th><th>Mkt</th><th>Pick</th><th class="r">Price</th>
       <th class="r">Model</th><th class="r">Fair</th><th class="r">Break-even</th>
       <th class="r">Edge</th><th class="r">EV</th><th class="r">Stake</th>
-      <th class="r">Conf.</th><th class="r">Move</th></tr></thead><tbody>` +
+      <th class="r">Conf.</th><th class="r">Move</th><th>Note</th></tr></thead><tbody>` +
       rows.map(b => {
         const tc = TIERCLS[b.tier];
         const lm = b.line_move || {};
@@ -468,6 +507,7 @@ function renderBoard(){
           <td class="r num">${b.tier!=="PASS"&&st?money(st):"—"}</td>
           <td class="r num" style="color:var(--ink-3)">${b.confidence===null||b.confidence===undefined?"—":pct(b.confidence,0)}</td>
           <td class="r num" style="color:var(--ink-3)">${mv===null||mv===undefined?"—":(mv>0?"+":"")+mv}</td>
+          <td style="color:var(--ink-3);font-size:11.5px;min-width:180px">${b.filtered?esc(b.filtered):"—"}</td>
         </tr>`;
       }).join("") + `</tbody></table></div>
       <p style="color:var(--ink-3);font-size:12px;margin-top:10px">${rows.length} of ${S.board.length} lines. <b>Fair</b> is the market's own opinion with the vig removed; <b>break-even</b> is what the price you'd actually pay requires. Edge is measured against break-even.</p>`;
@@ -622,6 +662,7 @@ function renderHealth(){
   h += `</div></div><div>`;
 
   const brier = m.brier;
+  const oh = m.odds_health || {};
   h += `<div class="tablewrap" style="padding:16px 18px;margin-bottom:14px">
     <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px">Scorecard</div>
     <table style="min-width:0"><tbody>
@@ -629,13 +670,16 @@ function renderHealth(){
       <tr><td>Average CLV</td><td class="r num ${s.avg_clv>0?"pos":s.avg_clv<0?"neg":""}" style="font-weight:600">${sgn(s.avg_clv,2)}</td></tr>
       <tr><td>Bets beating the close</td><td class="r num" style="font-weight:600">${s.clv_positive_rate===null||s.clv_positive_rate===undefined?"—":pct(s.clv_positive_rate,0)}</td></tr>
       <tr><td>Settled bets</td><td class="r num" style="font-weight:600">${s.settled||0}</td></tr>
+      <tr><td>Verified odds games</td><td class="r num" style="font-weight:600">${oh.games_with_verified_prices??"—"} / ${oh.games_checked??"—"}</td></tr>
+      <tr><td>Distinct sportsbook prices</td><td class="r num" style="font-weight:600">${oh.unique_prices??"—"}</td></tr>
+      <tr><td>Odds integrity</td><td class="r num ${oh.healthy===false?"neg":oh.healthy===true?"pos":""}" style="font-weight:600">${oh.healthy===false?"BLOCKED":oh.healthy===true?"VERIFIED":"—"}</td></tr>
     </tbody></table>
     <p style="font-size:12.5px;color:var(--ink-2);margin:12px 0 0;line-height:1.55">
       <b>Brier</b> measures probability accuracy — lower is better, 0.25 is what you'd score by guessing 50% every time.
       <b>CLV</b> is the gap between the price you took and the price the market closed at. Over a few hundred bets it predicts profit far better than win rate does, because it is a much larger sample of a much less noisy quantity. Positive CLV with a losing record usually means variance; negative CLV with a winning record usually means luck about to run out.</p>
   </div>`;
 
-  const mm = c.model || {}, tt = c.tiers || {}, bb = c.bankroll || {}, rr = c.ratings || {};
+  const mm = c.model || {}, tt = c.tiers || {}, bb = c.bankroll || {}, rr = c.ratings || {}, ff = c.filters || {}, dd = c.data || {};
   h += `<div class="tablewrap" style="padding:16px 18px">
     <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px">Live settings</div>
     <table style="min-width:0"><tbody>
@@ -643,7 +687,9 @@ function renderHealth(){
          ["Market blend",pct(mm.market_blend,0)],["Margin std dev",(mm.margin_sd??"—")+" pts"],["Total std dev",(mm.total_sd??"—")+" pts"],
          ["Key numbers",mm.use_key_numbers?"on":"off"],["Kelly fraction",pct(bb.kelly_fraction,0)],
          ["Max stake",pct(bb.max_stake_pct,0)+" of bankroll"],["Ridge lambda",rr.ridge_lambda??"—"],
-         ["Recency half-life",(rr.recency_halflife_games??"—")+" games"],["Solved home field",(m.home_field_advantage??"—")+" pts"]]
+         ["Recency half-life",(rr.recency_halflife_games??"—")+" games"],["Solved home field",(m.home_field_advantage??"—")+" pts"],
+         ["Actionable lookahead",(dd.lookahead_days??"—")+" days"],["Max spread gap",(ff.max_spread_projection_gap??"—")+" pts"],
+         ["Thin-data spread gap",(ff.max_thin_data_spread_gap??"—")+" pts"]]
         .map(([k,v]) => `<tr><td style="color:var(--ink-2)">${esc(k)}</td><td class="r num">${esc(v)}</td></tr>`).join("")}
     </tbody></table></div></div></div>`;
 
@@ -774,9 +820,127 @@ function renderHistory(){
   el.innerHTML = h;
 }
 
+function renderSimulator(){
+  const el = document.getElementById("p-sim");
+  if (!window.NCAAFSim){
+    el.innerHTML = `<div class="empty">The simulator engine did not load.</div>`;
+    return;
+  }
+  const ratings = new Map((S.ratings||[]).map(r => [r.team,r]));
+  const names = {};
+  (S.games||[]).forEach(g => {
+    names[g.away] = g.away_name || g.away;
+    names[g.home] = g.home_name || g.home;
+  });
+  const futureGames = (S.games||[]).filter(g => !g.completed && !g.canceled && !g.postponed &&
+    ratings.has(g.away) && ratings.has(g.home)).sort((a,b) => String(a.date||"").localeCompare(String(b.date||"")));
+  const state = S.sim;
+
+  function useGame(g){
+    const o = g.odds || {};
+    state.gameId = g.game_id;
+    state.away = g.away;
+    state.home = g.home;
+    state.neutral = Boolean(g.neutral);
+    state.spread = o.spread_home ?? "";
+    state.total = o.total ?? "";
+  }
+  if (!state.ready){
+    const first = futureGames.find(g => (g.odds||{}).verified_markets?.length) || futureGames[0];
+    if (first) useGame(first);
+    else if (S.ratings.length >= 2){ state.away=S.ratings[1].team; state.home=S.ratings[0].team; }
+    state.ready = true;
+  }
+
+  const teamRows = [...ratings.values()].sort((a,b) => a.team.localeCompare(b.team));
+  const teamOptions = selected => teamRows.map(r =>
+    `<option value="${esc(r.team)}" ${r.team===selected?"selected":""}>${esc(r.team)} — ${esc(names[r.team]||r.team)}</option>`).join("");
+  const gameOptions = `<option value="">Custom matchup</option>` + futureGames.map(g =>
+    `<option value="${esc(g.game_id)}" ${g.game_id===state.gameId?"selected":""}>${esc(day(g.date))} · ${esc(g.away)} @ ${esc(g.home)}${g.neutral?" · neutral":""}</option>`).join("");
+
+  el.innerHTML = `<div class="panel-head"><div><h2>Matchup Simulator</h2>
+    <p>Run 10,000 repeat games from the same power ratings, scoring model, key-number distribution and uncertainty used by the board. Pick a scheduled game to load its line, or build any matchup yourself.</p></div></div>
+    <div class="sim-layout">
+      <div class="sim-box"><div class="sim-form">
+        <div class="sim-field wide"><label for="sim-game">Scheduled matchup</label><select id="sim-game">${gameOptions}</select></div>
+        <div class="sim-field"><label for="sim-away">Away team</label><select id="sim-away">${teamOptions(state.away)}</select></div>
+        <div class="sim-field"><label for="sim-home">Home team</label><select id="sim-home">${teamOptions(state.home)}</select></div>
+        <label class="sim-check"><input id="sim-neutral" type="checkbox" ${state.neutral?"checked":""}>Neutral site — remove home-field advantage</label>
+        <div class="sim-field"><label for="sim-spread">Home spread</label><input id="sim-spread" type="number" step="0.5" value="${esc(state.spread)}" placeholder="Example: -3.5"></div>
+        <div class="sim-field"><label for="sim-total">Market total</label><input id="sim-total" type="number" step="0.5" value="${esc(state.total)}" placeholder="Example: 52.5"></div>
+        <div class="sim-field wide"><label for="sim-runs">Number of repeat games</label><select id="sim-runs">
+          ${[1000,10000,25000,50000].map(n=>`<option value="${n}" ${n===state.iterations?"selected":""}>${n.toLocaleString()} simulations</option>`).join("")}
+        </select></div>
+        <button class="sim-run" id="sim-run" type="button">Run matchup</button>
+      </div>
+      <p style="font-size:12px;color:var(--ink-3);margin:12px 0 0;line-height:1.55">The spread uses the sportsbook convention: a negative number means the home team is favoured. Leave spread or total blank to hide that comparison.</p></div>
+      <div class="sim-box" id="sim-output"></div>
+    </div>`;
+
+  const val = id => document.getElementById(id).value;
+  function run(){
+    state.away = val("sim-away"); state.home = val("sim-home");
+    state.neutral = document.getElementById("sim-neutral").checked;
+    state.spread = val("sim-spread"); state.total = val("sim-total");
+    state.iterations = Number(val("sim-runs"));
+    const away = ratings.get(state.away), home = ratings.get(state.home);
+    const out = document.getElementById("sim-output");
+    if (!away || !home || away.team === home.team){
+      out.innerHTML = `<div class="empty">Choose two different rated teams.</div>`;
+      return;
+    }
+    const mm = cfg().model || {};
+    const result = NCAAFSim.simulate({away,home,neutral:state.neutral,
+      homeField:S.meta.home_field_advantage,homeScoringBump:S.meta.home_scoring_bump,
+      leagueAverage:S.meta.league_avg_points,marginSd:mm.margin_sd,totalSd:mm.total_sd,
+      keyNumbers:mm.use_key_numbers,spread:state.spread,marketTotal:state.total,
+      iterations:state.iterations});
+    const box = (label,p,sub) => `<div class="sim-prob"><div class="k">${esc(label)}</div>
+      <div class="v">${pct(p)}</div><div style="font-size:11.5px;color:var(--ink-3);margin-top:2px">${esc(sub||"")}</div>
+      <div class="sim-meter"><i style="width:${Math.max(0,Math.min(100,p*100))}%"></i></div></div>`;
+    const marginText = result.projection.margin >= 0 ? `${home.team} by ${result.projection.margin.toFixed(1)}` : `${away.team} by ${Math.abs(result.projection.margin).toFixed(1)}`;
+    let probs = box(`${away.team} wins`,result.awayWinProbability,`fair ML ${price(result.fairAwayMoneyline)}`) +
+      box(`${home.team} wins`,result.homeWinProbability,`fair ML ${price(result.fairHomeMoneyline)}`);
+    if (result.spread){
+      probs += box(`${away.team} covers ${result.spread.line>0?"−":"+"}${Math.abs(result.spread.line)}`,result.spread.awayCoverProbability,
+        result.spread.pushProbability?`${pct(result.spread.pushProbability)} push`:"no push") +
+        box(`${home.team} covers ${result.spread.line>0?"+":"−"}${Math.abs(result.spread.line)}`,result.spread.homeCoverProbability,
+        result.spread.pushProbability?`${pct(result.spread.pushProbability)} push`:"no push");
+    }
+    if (result.total){
+      probs += box(`Over ${result.total.line}`,result.total.overProbability,result.total.pushProbability?`${pct(result.total.pushProbability)} push`:"no push") +
+        box(`Under ${result.total.line}`,result.total.underProbability,result.total.pushProbability?`${pct(result.total.pushProbability)} push`:"no push");
+    }
+    const spreadGap = result.spread ? Math.abs(result.projection.margin + result.spread.line) : 0;
+    const limit = Number((cfg().filters||{}).max_spread_projection_gap ?? 14);
+    const warnings = [];
+    if ((away.games||0) < 1 || (home.games||0) < 1) warnings.push("These are preseason ratings: neither team has a current-season result yet.");
+    if (spreadGap > limit) warnings.push(`The model is ${spreadGap.toFixed(1)} points away from the market, beyond the ${limit}-point betting safety rail.`);
+    out.innerHTML = `<div class="sim-score"><div><div style="font-size:11px;color:var(--ink-3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px">Average simulated score</div>
+      <div class="score">${esc(away.team)} ${result.averageAwayScore.toFixed(1)} – ${esc(home.team)} ${result.averageHomeScore.toFixed(1)}</div></div>
+      <div class="meta">${result.iterations.toLocaleString()} repeat games<br>reproducible model draw</div></div>
+      <div class="sim-probs">${probs}</div>
+      <div class="sim-readout"><b>Model projection:</b> ${esc(marginText)}, ${result.projection.total.toFixed(1)} total points.
+        ${warnings.length?`<div class="note" style="margin-top:12px"><b>Use caution.</b> ${esc(warnings.join(" "))}</div>`:""}
+        <p style="margin:12px 0 0;color:var(--ink-3);font-size:12px">Simulator percentages are the raw ratings model, before the board's market blend, confidence penalty, price check and safety filters. They are scenario output, not an automatic bet recommendation.</p></div>`;
+    postHeight();
+  }
+
+  document.getElementById("sim-game").onchange = e => {
+    const g = futureGames.find(row => row.game_id === e.target.value);
+    if (g){ useGame(g); renderSimulator(); }
+    else state.gameId = "";
+  };
+  ["sim-away","sim-home"].forEach(id => document.getElementById(id).onchange = () => {
+    state.gameId = ""; document.getElementById("sim-game").value = "";
+  });
+  document.getElementById("sim-run").onclick = run;
+  run();
+}
+
 function renderPanels(){
   ({best:renderBest, board:renderBoard, schedule:renderSchedule, ledger:renderLedger,
-    ratings:renderRatings, history:renderHistory, health:renderHealth}[S.tab] || renderBest)();
+    sim:renderSimulator, ratings:renderRatings, history:renderHistory, health:renderHealth}[S.tab] || renderBest)();
   postHeight();
 }
 

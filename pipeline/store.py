@@ -63,7 +63,8 @@ def record_lines(lines: dict, games: list[dict]) -> dict:
     ts = now_iso()
     for g in games:
         o = g.get("odds") or {}
-        if not o or o.get("spread_home") is None and o.get("total") is None and o.get("ml_home") is None:
+        verified = list(o.get("verified_markets") or [])
+        if not verified:
             continue
         gid = g["game_id"]
         hist = lines.setdefault(gid, [])
@@ -78,6 +79,8 @@ def record_lines(lines: dict, games: list[dict]) -> dict:
             "under_price": o.get("under_price"),
             "ml_home": o.get("ml_home"),
             "ml_away": o.get("ml_away"),
+            "odds_verified": True,
+            "verified_markets": verified,
         }
         if hist:
             prev = {k: v for k, v in hist[-1].items() if k != "ts"}
@@ -85,6 +88,28 @@ def record_lines(lines: dict, games: list[dict]) -> dict:
                 continue
         hist.append(snap)
     return lines
+
+
+def clean_unverified_lines(lines: dict) -> tuple[dict, int]:
+    """Remove legacy snapshots that may contain fabricated default prices."""
+    out, removed = {}, 0
+    for gid, hist in (lines or {}).items():
+        keep = [s for s in (hist or []) if s.get("odds_verified") is True]
+        removed += len(hist or []) - len(keep)
+        if keep:
+            out[gid] = keep
+    return out, removed
+
+
+def clean_unverified_pending(records: dict) -> tuple[dict, int]:
+    """Keep settled history, but discard pending plays made from legacy prices."""
+    out, removed = {}, 0
+    for key, row in (records or {}).items():
+        if row.get("result") in (None, "Pending") and row.get("odds_verified") is not True:
+            removed += 1
+            continue
+        out[key] = row
+    return out, removed
 
 
 def opener(lines: dict, game_id: str) -> dict | None:

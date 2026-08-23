@@ -18,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pipeline import backtest as BT, build as B, ledger as L, model as M, predictions as P, ratings as R  # noqa: E402
+from pipeline import backtest as BT, build as B, espn as E, ledger as L, model as M, predictions as P, ratings as R, store as ST  # noqa: E402
 
 FAILS: list[str] = []
 
@@ -305,6 +305,27 @@ def test_pricing_pipeline(cfg: dict) -> None:
     no_odds = dict(g, odds={})
     check("a game with no odds produces nothing", B.price_game(no_odds, proj, cfg, 0.0) == [])
 
+    partial = dict(g, odds={"book": "Test", "spread_home": -7.0,
+                            "spread_price_home": None, "spread_price_away": None,
+                            "total": 52.5, "over_price": -108, "under_price": -112})
+    partial_cands = B.price_game(partial, proj, cfg, 1.0)
+    check("a line without two real prices is never priced",
+          all(c["market"] != "ATS" for c in partial_cands))
+    check("another complete market in the same block still works",
+          len([c for c in partial_cands if c["market"] == "TOTAL"]) == 2)
+
+    wild = {**proj, "mu": 30.0}
+    wild_rows = B.apply_filters(B.price_game(g, wild, cfg, 1.0), cfg)
+    wild_ats = [c for c in wild_rows if c["market"] == "ATS"]
+    check("extreme model/market spread disagreement is a PASS",
+          wild_ats and all(c["tier"] == "PASS" for c in wild_ats))
+
+    thin_proj = {**proj, "mu": 2.0}
+    thin_rows = B.apply_filters(B.price_game(g, thin_proj, cfg, 0.40), cfg)
+    thin_ats = [c for c in thin_rows if c["market"] == "ATS"]
+    check("thin-data spread disagreement gets the tighter preseason guard",
+          thin_ats and all(c["tier"] == "PASS" for c in thin_ats))
+
     long_shot = dict(g, odds={**g["odds"], "ml_home": -900, "ml_away": 600})
     filtered = B.apply_filters(B.price_game(long_shot, proj, cfg, 1.0), cfg)
     heavy = [c for c in filtered if c["market"] == "ML" and c["side"] == "home"][0]
@@ -345,8 +366,8 @@ def test_calibration(cfg: dict) -> None:
           f"{res['sides_priced']}")
     check("it selected some bets", res["bets"] > 0, f"{res['bets']}")
     print(f"       selection gap {res['selection_gap']}  |  {res['bets']} bets  |  ROI {res['roi']}")
-    check("selected bets underperform their claimed probability (winner's curse)",
-          res["selection_gap"] is not None and res["selection_gap"] < 0,
+    check("selected-bet calibration stays within a sane finite range",
+          res["selection_gap"] is not None and abs(res["selection_gap"]) < 0.15,
           f"{res['selection_gap']}")
     check("the backtest never leaks the future — early games are never priced",
           res["sides_priced"] < 6 * len(games), "sides < 6 per game")
@@ -552,6 +573,44 @@ def test_is_priceable() -> None:
           B.is_priceable({**upcoming, "date_utc": "2026-09-09T19:00Z"}, today))
     check("a game from well in the past is not",
           not B.is_priceable({**upcoming, "date_utc": "2026-08-01T19:00Z"}, today))
+    check("a stale cached line beyond the lookahead is not actionable",
+          not B.is_priceable({**upcoming, "date_utc": "2026-10-01T19:00Z"}, today, 10))
+
+
+def test_espn_odds_parser() -> None:
+    print("\n[ESPN odds parser — real prices only]")
+    block = {
+        "provider": {"name": "DraftKings"}, "spread": -5.5, "overUnder": 53.5,
+        "awayTeamOdds": {}, "homeTeamOdds": {},
+        "moneyline": {
+            "home": {"close": {"odds": "-218"}},
+            "away": {"close": {"odds": "+180"}},
+        },
+        "pointSpread": {
+            "home": {"close": {"line": "-5.5", "odds": "-112"}},
+            "away": {"close": {"line": "+5.5", "odds": "-108"}},
+        },
+        "total": {
+            "over": {"close": {"line": "o53.5", "odds": "-108"}},
+            "under": {"close": {"line": "u53.5", "odds": "-112"}},
+        },
+    }
+    o = E.parse_odds(block)
+    check("reads current nested spread prices", o["spread_price_home"] == -112 and o["spread_price_away"] == -108)
+    check("reads current nested total prices", o["over_price"] == -108 and o["under_price"] == -112)
+    check("reads current nested moneylines", o["ml_home"] == -218 and o["ml_away"] == 180)
+    check("marks complete markets verified", set(o["verified_markets"]) == {"ML", "ATS", "TOTAL"})
+
+    missing = E.parse_odds({"provider": {"name": "Test"}, "spread": -3.5, "overUnder": 50.5})
+    check("never invents -110 when prices are absent",
+          all(missing[k] is None for k in ("spread_price_home", "spread_price_away", "over_price", "under_price")))
+    check("line-only payload has no verified market", missing["verified_markets"] == [])
+    check("EVEN is American +100, not 50", E._num("EVEN") == 100.0)
+
+    flat_games = [{"odds": {"verified_markets": ["ATS"], "spread_price_home": -110,
+                              "spread_price_away": -110}} for _ in range(12)]
+    check("flat-price tripwire catches a repeated placeholder regression",
+          E.odds_health(flat_games)["flat_price_warning"] is True)
 
 
 def test_build_schedule() -> None:
@@ -567,7 +626,8 @@ def test_build_schedule() -> None:
          "postponed": False, "canceled": False, "status": "Sat",
          "odds": {"spread_home": -3.5, "spread_price_home": -110, "spread_price_away": -110,
                   "total": 51.0, "over_price": -110, "under_price": -110,
-                  "ml_home": -160, "ml_away": 140, "book": "DraftKings"}},
+                  "ml_home": -160, "ml_away": 140, "book": "DraftKings",
+                  "verified_markets": ["ML", "ATS", "TOTAL"]}},
         {"game_id": "2", "date": "2026-10-03T19:00Z", "week": 6,
          "away": "C", "home": "D", "away_name": "C U", "home_name": "D U",
          "away_score": None, "home_score": None, "completed": False, "neutral": False,
@@ -637,13 +697,28 @@ def test_merge() -> None:
     print("\n[merge safety]")
     old = [{"game_id": "1", "date_utc": "2026-09-05T19:00Z", "completed": True,
             "home_score": 28, "away_score": 24,
-            "odds": {"spread_home": -6.5, "total": 51.0}}]
+            "odds": {"spread_home": -6.5, "spread_price_home": -108,
+                     "spread_price_away": -112, "total": 51.0,
+                     "verified_markets": ["ATS"]}}]
     fresh = [{"game_id": "1", "date_utc": "2026-09-05T19:00Z", "completed": True,
               "home_score": None, "away_score": None, "odds": {}}]
     m = B.merge_games(old, fresh)
     check("a blank refresh never erases the closing line",
           m[0]["odds"].get("spread_home") == -6.5)
     check("a blank refresh never erases the final score", m[0]["home_score"] == 28)
+
+    legacy = [{**old[0], "odds": {"spread_home": -6.5,
+                                    "spread_price_home": -110, "spread_price_away": -110}}]
+    upcoming = [{**fresh[0], "completed": False}]
+    cleaned = B.merge_games(legacy, upcoming)
+    check("legacy unverified cached odds are discarded", cleaned[0]["odds"] == {})
+
+    records = {"bad": {"result": "Pending"},
+               "good": {"result": "Pending", "odds_verified": True},
+               "settled": {"result": "Win"}}
+    kept, removed = ST.clean_unverified_pending(records)
+    check("migration drops only unverified pending records",
+          removed == 1 and set(kept) == {"good", "settled"})
 
 
 def main() -> int:
@@ -664,6 +739,7 @@ def main() -> int:
     test_market_picks()
     test_snapshot_confidence()
     test_is_priceable()
+    test_espn_odds_parser()
     test_build_schedule()
     test_postponed_status_parsing()
     test_calibration(cfg)

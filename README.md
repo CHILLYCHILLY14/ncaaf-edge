@@ -5,6 +5,11 @@ ratings, edges, tiers, stake sizes, grading, bankroll and ROI all update on a
 schedule with no manual step, and the output is a private web dashboard you can
 embed in a Wix page plus a workbook that regenerates itself every run.
 
+The dashboard also includes a matchup simulator that runs 1,000 to 50,000
+repeat games from the same power ratings, scoring model, key-number margin
+distribution and uncertainty used by the board. Choose a scheduled game to
+load its posted spread and total, or create any rated matchup.
+
 It replaces a spreadsheet that needed the whole week's games, every line, and
 every final score typed in by hand.
 
@@ -35,6 +40,17 @@ numbers, which also produces honest push probabilities on whole-number spreads.
 **Vig is separated from disagreement.** The market's *fair* opinion (de-vigged)
 and the price you actually have to beat (break-even) are different numbers, and
 conflating them makes the juice look like an edge. Both are shown.
+
+**Missing prices stay missing.** ESPN's current feed nests the real two-sided
+prices inside each moneyline, point-spread and total market. A market is priced
+only when both side prices are present; the pipeline never substitutes a
+standard `-110`. A flat-price integrity tripwire disables plays if that bug ever
+returns.
+
+**Old lines expire.** Only games inside the configured rolling lookahead window
+can reach the betting board. A preseason line cached for a game months away can
+remain visible in the season schedule, but it cannot be treated as a current,
+actionable quote.
 
 **Closing line value.** Every line is snapshotted every run, so the model knows
 what it bet into and what the market closed at. Over a few hundred bets CLV
@@ -100,7 +116,8 @@ the included workflow refreshes everything four times a day for free.
 | `python -m pipeline.build --no-bet` | Price everything, log nothing |
 | `python -m pipeline.backtest` | Walk-forward backtest on cached seasons |
 | `python -m pipeline.to_excel` | Regenerate the workbook |
-| `python -m tests.test_offline` | Self-test, no network |
+| `python -m tests.test_offline` | Pipeline self-test, no network |
+| `node tests/test_simulator.js` | Simulator self-test, no network |
 | `python -m tools.make_demo --embed` | Simulated data + a standalone preview page |
 
 ## Tuning

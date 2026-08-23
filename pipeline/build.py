@@ -46,11 +46,23 @@ def merge_games(cache: list[dict], fresh: list[dict]) -> list[dict]:
     Odds specifically: once a game is final ESPN stops returning a line, so a
     naive merge would erase the closing number we need for grading and CLV.
     """
-    by_id = {g["game_id"]: g for g in cache}
-    for g in fresh:
+    # Odds written before parser v2 have no verification marker. Those records
+    # may contain the old invented -110 defaults, so they are not allowed to
+    # survive a refresh as if they were observed sportsbook prices.
+    by_id = {}
+    for cached in cache:
+        g = dict(cached)
+        if "verified_markets" not in (g.get("odds") or {}):
+            g["odds"] = {}
+        by_id[g["game_id"]] = g
+    for fresh_game in fresh:
+        g = dict(fresh_game)
         old = by_id.get(g["game_id"])
         if old:
-            if not (g.get("odds") or {}).get("spread_home") and (old.get("odds") or {}).get("spread_home"):
+            # ESPN removes closing odds after a game becomes final. Preserve
+            # only a close that was previously parsed from complete real prices.
+            if (g.get("completed") and not espn.has_priced_market(g.get("odds"))
+                    and espn.has_priced_market(old.get("odds"))):
                 g["odds"] = old["odds"]
             if g.get("home_score") is None and old.get("home_score") is not None:
                 g["home_score"] = old["home_score"]
@@ -60,7 +72,7 @@ def merge_games(cache: list[dict], fresh: list[dict]) -> list[dict]:
     return sorted(by_id.values(), key=lambda x: (x.get("date_utc") or "", x["game_id"]))
 
 
-def is_priceable(g: dict, today: dt.date) -> bool:
+def is_priceable(g: dict, today: dt.date, lookahead_days: int = 10) -> bool:
     """
     Whether a game belongs on the priced board right now.
 
@@ -74,7 +86,9 @@ def is_priceable(g: dict, today: dt.date) -> bool:
     d = (g.get("date_utc") or "")[:10]
     if not d:
         return False
-    return d >= (today - dt.timedelta(days=1)).isoformat()
+    lo = (today - dt.timedelta(days=1)).isoformat()
+    hi = (today + dt.timedelta(days=max(0, lookahead_days))).isoformat()
+    return lo <= d <= hi
 
 
 def build_schedule(game_rows: list[dict]) -> list[dict]:
@@ -94,7 +108,7 @@ def build_schedule(game_rows: list[dict]) -> list[dict]:
         wk = g.get("week")
         key = str(wk) if wk is not None else "Unscheduled"
         o = g.get("odds") or {}
-        has_odds = any(o.get(k) is not None for k in ("spread_home", "total", "ml_home"))
+        has_odds = espn.has_priced_market(o)
         by_week[key].append({
             "game_id": g["game_id"], "date": g.get("date"),
             "away": g["away"], "home": g["home"],
@@ -284,14 +298,15 @@ def price_game(g: dict, proj: dict, cfg: dict, conf: float) -> list[dict]:
                         "edge": p - be, "ev": M.expected_value(p, price)})
 
     # ---- Spread ----------------------------------------------------------- #
-    if cfg["markets"]["spread"] and o.get("spread_home") is not None:
+    if (cfg["markets"]["spread"] and o.get("spread_home") is not None
+            and o.get("spread_price_home") is not None and o.get("spread_price_away") is not None):
         sp = float(o["spread_home"])
         pw, pp, pl = M.cover_probability(mu, sd_m, sp, keys)
         # Re-normalise onto the non-push space, which is what the price pays on.
         denom = pw + pl
         raw_h = pw / denom if denom else 0.5
-        ph_price = float(o.get("spread_price_home") or -110)
-        pa_price = float(o.get("spread_price_away") or -110)
+        ph_price = float(o["spread_price_home"])
+        pa_price = float(o["spread_price_away"])
         be_h, be_a = M.american_to_prob(ph_price), M.american_to_prob(pa_price)
         fair_h, fair_a = M.devig(be_h, be_a)
         p_h = (1 - blend) * raw_h + blend * fair_h
@@ -304,16 +319,18 @@ def price_game(g: dict, proj: dict, cfg: dict, conf: float) -> list[dict]:
                         "price": price, "model_prob": p,
                         "raw_model_prob": raw_h if side == "home" else 1 - raw_h,
                         "market_fair_prob": fair, "breakeven": be, "push_prob": round(pp, 4),
+                        "projection_gap": abs(mu + sp),
                         "edge": p - be, "ev": M.expected_value(p * (1 - pp), price, pp)})
 
     # ---- Total ------------------------------------------------------------ #
-    if cfg["markets"]["total"] and o.get("total") is not None:
+    if (cfg["markets"]["total"] and o.get("total") is not None
+            and o.get("over_price") is not None and o.get("under_price") is not None):
         tot = float(o["total"])
         po, pp, pu = M.over_probability(proj["proj_total"], tot, sd_t)
         denom = po + pu
         raw_o = po / denom if denom else 0.5
-        op = float(o.get("over_price") or -110)
-        up = float(o.get("under_price") or -110)
+        op = float(o["over_price"])
+        up = float(o["under_price"])
         be_o, be_u = M.american_to_prob(op), M.american_to_prob(up)
         fair_o, fair_u = M.devig(be_o, be_u)
         p_o = (1 - blend) * raw_o + blend * fair_o
@@ -325,17 +342,39 @@ def price_game(g: dict, proj: dict, cfg: dict, conf: float) -> list[dict]:
                         "price": price, "model_prob": p,
                         "raw_model_prob": raw_o if side == "over" else 1 - raw_o,
                         "market_fair_prob": fair, "breakeven": be, "push_prob": round(pp, 4),
+                        "projection_gap": abs(proj["proj_total"] - tot),
                         "edge": p - be, "ev": M.expected_value(p * (1 - pp), price, pp)})
 
     for c in out:
+        c["odds_verified"] = True
+        c["raw_market_gap"] = abs(c["raw_model_prob"] - c["market_fair_prob"])
         c["tier"] = M.tier_for(c["edge"], cfg, conf)
     return out
 
 
-def apply_filters(cands: list[dict], cfg: dict) -> list[dict]:
+def apply_filters(cands: list[dict], cfg: dict, feed_healthy: bool = True) -> list[dict]:
     f = cfg["filters"]
     ok = []
     for c in cands:
+        if not feed_healthy:
+            c["tier"] = "PASS"
+            c["filtered"] = "odds feed integrity warning"
+        gap_limit = (f.get("max_spread_projection_gap") if c["market"] == "ATS"
+                     else f.get("max_total_projection_gap") if c["market"] == "TOTAL" else None)
+        thin = c.get("confidence", 0.0) < float(f.get("thin_data_confidence_threshold", 0.5))
+        if thin and c["market"] == "ATS" and f.get("max_thin_data_spread_gap") is not None:
+            thin_gap = float(f["max_thin_data_spread_gap"])
+            gap_limit = min(float(gap_limit), thin_gap) if gap_limit is not None else thin_gap
+        if gap_limit is not None and c.get("projection_gap", 0.0) > float(gap_limit):
+            c["tier"] = "PASS"
+            c["filtered"] = "model and market are too far apart for a reliable early-season play"
+        prob_limit = f.get("max_raw_market_prob_gap")
+        if thin and f.get("max_thin_data_raw_market_prob_gap") is not None:
+            thin_prob = float(f["max_thin_data_raw_market_prob_gap"])
+            prob_limit = min(float(prob_limit), thin_prob) if prob_limit is not None else thin_prob
+        if prob_limit is not None and c.get("raw_market_gap", 0.0) > float(prob_limit):
+            c["tier"] = "PASS"
+            c["filtered"] = "raw model/market disagreement exceeds the safety limit"
         if not (float(f["min_price"]) <= c["price"] <= float(f["max_price"])):
             c["tier"] = "PASS"
             c["filtered"] = "price outside allowed range"
@@ -463,11 +502,13 @@ def main() -> int:
     print(f"   current season games: {len(games)} ({sum(1 for g in games if g.get('completed'))} final)")
 
     # 3. Odds snapshots (this is what makes CLV possible).
-    lines = store.record_lines(store.load("lines.json", {}), games)
+    raw_lines = store.load("lines.json", {})
+    lines, removed_lines = store.clean_unverified_lines(raw_lines)
+    lines = store.record_lines(lines, games)
     store.save("lines.json", lines)
 
     # Recover closing lines for finals the scoreboard has already stripped.
-    ledg = store.load("ledger.json", {})
+    ledg, removed_bets = store.clean_unverified_pending(store.load("ledger.json", {}))
     for bet in ledg.values():
         if bet.get("result") == "Pending" and not store.closer(lines, bet["game_id"]):
             rec = espn.odds_from_summary(bet["game_id"], prio)
@@ -494,17 +535,18 @@ def main() -> int:
     # forming around a game that isn't going to be played as scheduled, and
     # pricing one would just be noise on the board.
     board: list[dict] = []
-    upcoming = [g for g in games if is_priceable(g, today)]
+    lookahead = int(cfg["data"]["lookahead_days"])
+    upcoming = [g for g in games if is_priceable(g, today, lookahead)]
+    odds_health = espn.odds_health(upcoming)
     for g in upcoming:
-        has_odds = bool(g.get("odds", {}).get("spread_home") is not None
-                        or g.get("odds", {}).get("ml_home") is not None)
+        has_odds = espn.has_priced_market(g.get("odds"))
         conf = M.confidence_score(played.get(g["home"]["abbr"], 0),
                                   played.get(g["away"]["abbr"], 0), has_odds, cfg)
         conf *= snapshot_confidence(store.line_move(lines, g["game_id"]).get("snapshots", 0))
         proj = project(g, rat, hfa, score_rat, league, home_bump, rests, ovr, cfg)
         if not proj["ratings_known"]:
             conf = min(conf, 0.4)
-        cands = apply_filters(price_game(g, proj, cfg, conf), cfg)
+        cands = apply_filters(price_game(g, proj, cfg, conf), cfg, odds_health["healthy"])
         cands = fcs_guard(cands, g["home"]["abbr"], g["away"]["abbr"], fbs, cfg)
         for c in cands:
             c["projection"] = proj
@@ -538,7 +580,7 @@ def main() -> int:
     # over + under) when both happen to pass the filters, and logging both
     # would make aggregate win-rate mathematically forced toward 50% (one
     # side always wins, the other always loses, however good the model is).
-    preds = store.load("predictions.json", {})
+    preds, removed_predictions = store.clean_unverified_pending(store.load("predictions.json", {}))
     logged = 0
     by_game: dict[str, list[dict]] = {}
     for c in board:
@@ -558,11 +600,18 @@ def main() -> int:
         "generated_at": store.now_iso(),
         "season": season,
         "home_field_advantage": round(hfa, 2),
+        "home_scoring_bump": round(home_bump, 2),
         "league_avg_points": round(league, 1),
         "games_final": sum(1 for g in games if g.get("completed")),
         "games_upcoming": len(upcoming),
         "settings": cfg,
         "brier": ledger.brier(ledg),
+        "odds_health": odds_health,
+        "data_repair": {
+            "unverified_line_snapshots_removed": removed_lines,
+            "unverified_pending_bets_removed": removed_bets,
+            "unverified_pending_predictions_removed": removed_predictions,
+        },
     }
 
     def write(name: str, payload) -> None:
