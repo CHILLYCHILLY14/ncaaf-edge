@@ -652,6 +652,170 @@ def test_build_schedule() -> None:
           unscheduled[0]["week"] == "Unscheduled")
 
 
+def test_threshold_window(cfg: dict) -> None:
+    """
+    The bug that silenced the entire 2026 opening slate.
+
+    Two guards act on the same quantity in opposite directions. The
+    confidence-scaled tier floor demands a BIGGER model/market disagreement
+    when data is thin; the safety ceiling rejects disagreements ABOVE a limit.
+    Edge rises monotonically with that disagreement, so if the ceiling lands
+    below the floor the window is empty and nothing can qualify at any price --
+    and an empty board looks exactly like a model that simply had no opinion.
+    """
+    print("\n[threshold window — the silent dead zone]")
+    import json as _j
+    broken = _j.loads(_j.dumps(cfg))
+    broken["filters"]["guard_headroom"] = 1.0            # rails applied literally
+    broken["filters"]["max_thin_data_raw_market_prob_gap"] = 0.18
+
+    conf = min(M.confidence_score(0, 0, True, broken), B.snapshot_confidence(1))
+    w = M.threshold_window(broken, conf, thin=True)
+    check("season-opener window is detected as infeasible", w["feasible"] is False, str(w))
+    check("it names which rail is doing the blocking", len(w["blocked_by"]) > 0,
+          str(w["blocked_by"]))
+    check("a LEAN demands more disagreement than the ceiling allows",
+          w["lean_requires_raw_gap"] > w["raw_gap_ceiling"],
+          f'{w["lean_requires_raw_gap"]} vs {w["raw_gap_ceiling"]}')
+
+    # With headroom on, the ceiling is lifted above the floor by construction.
+    fixed = _j.loads(_j.dumps(broken))
+    fixed["filters"]["guard_headroom"] = 1.35
+    ceil = B.raw_gap_ceiling(fixed, conf, True)
+    floor = M.raw_gap_for_edge(M.edge_floor(fixed, conf, "lean"), fixed)
+    check("headroom lifts the ceiling above the LEAN floor", ceil > floor,
+          f"ceiling {ceil:.3f} vs floor {floor:.3f}")
+    sp_ceil = B.spread_gap_ceiling(fixed, conf, True, "ATS")
+    sp_floor = M.spread_gap_for_edge(M.edge_floor(fixed, conf, "lean"), fixed)
+    check("the points-space rail gets the same guarantee", sp_ceil > sp_floor,
+          f"ceiling {sp_ceil:.2f}pts vs floor {sp_floor:.2f}pts")
+
+    # End to end: a real disagreement must now be able to reach the board.
+    def priced(mu, c):
+        g = {"game_id": "X", "date_utc": "2026-08-29T19:00Z", "week": 1,
+             "home": {"abbr": "H", "name": "H"}, "away": {"abbr": "A", "name": "A"},
+             "odds": {"spread_home": -3.5, "spread_price_home": -110, "spread_price_away": -110,
+                      "total": 52.5, "over_price": -110, "under_price": -110,
+                      "ml_home": -170, "ml_away": 145, "book": "DraftKings",
+                      "verified_markets": ["ML", "ATS", "TOTAL"]}}
+        proj = {"mu": mu, "proj_total": 52.5, "proj_home_pts": 28.0,
+                "proj_away_pts": 24.5, "ratings_known": True}
+        return B.apply_filters(B.price_game(g, proj, c, conf), c, True)
+
+    live = [x for x in priced(-5.0, fixed) if x["market"] == "ATS"]
+    check("a genuine 8.5-point disagreement can now qualify",
+          any(x["tier"] != "PASS" for x in live),
+          str([(x["tier"], round(x["edge"], 3)) for x in live]))
+    dead = [x for x in priced(-5.0, broken) if x["market"] == "ATS"]
+    check("the same play was impossible before the fix",
+          all(x["tier"] == "PASS" for x in dead))
+
+    # The blind-spot case the rails exist for must still be rejected: an FCS
+    # opponent with no rating makes a 54-point favourite look like a coin flip.
+    blind = {"game_id": "U", "date_utc": "2026-09-04T00:00Z", "week": 1,
+             "home": {"abbr": "MIZ", "name": "Missouri"},
+             "away": {"abbr": "UAPB", "name": "Pine Bluff"},
+             "odds": {"spread_home": -54.5, "spread_price_home": -110,
+                      "spread_price_away": -110, "total": 60.5, "over_price": -110,
+                      "under_price": -110, "book": "DraftKings",
+                      "verified_markets": ["ATS", "TOTAL"]}}
+    bp = {"mu": 3.44, "proj_total": 55.0, "proj_home_pts": 31.3,
+          "proj_away_pts": 23.7, "ratings_known": True}
+    got = B.apply_filters(B.price_game(blind, bp, fixed, conf), fixed, True)
+    ats = [x for x in got if x["market"] == "ATS"]
+    check("headroom does NOT reopen the FCS spread blind spot",
+          all(x["tier"] == "PASS" for x in ats),
+          str([(x["market"], x["tier"]) for x in ats]))
+
+    # Worth stating plainly: the rails alone are NOT enough here. The spread is
+    # absurd enough to trip them, but the total (55 projected vs 60.5 posted)
+    # looks like an ordinary disagreement, even though it rests on the same
+    # fiction -- that a team which will realistically score a touchdown is an
+    # average FBS offence. That is precisely why fcs_guard is a separate layer
+    # rather than a threshold, and why it kills every market on the game.
+    rails_only_totals = [x for x in got if x["market"] == "TOTAL" and x["tier"] != "PASS"]
+    check("the rails alone would still let the FCS total through (hence the guard)",
+          len(rails_only_totals) > 0)
+    guarded = B.fcs_guard(got, "MIZ", "UAPB", {"MIZ"}, fixed)
+    check("fcs_guard kills every market on a non-FBS game",
+          all(x["tier"] == "PASS" for x in guarded),
+          str([(x["market"], x["tier"]) for x in guarded]))
+    check("and says why", all("FBS participant" in (x.get("filtered") or "") for x in guarded))
+
+
+def test_diagnose_board(cfg: dict) -> None:
+    """An empty board must say which kind of empty it is."""
+    print("\n[board diagnosis]")
+    d = B.diagnose_board([], cfg)
+    check("an empty board still produces a diagnosis", "headline" in d)
+    check("it reports zero qualified", d["qualified"] == 0)
+
+    board = [{"matchup": "A @ H", "market": "ATS", "pick": "H -3.5", "tier": "PASS",
+              "edge": 0.02, "confidence": 0.45},
+             {"matchup": "C @ D", "market": "ML", "pick": "D ML", "tier": "PASS",
+              "edge": 0.01, "confidence": 0.45, "filtered": "price outside allowed range"}]
+    d = B.diagnose_board(board, cfg)
+    check("it counts each distinct rejection reason", len(d["reasons"]) == 2, str(d["reasons"]))
+    check("near misses exclude rail-rejected lines",
+          [m["matchup"] for m in d["near_misses"]] == ["A @ H"], str(d["near_misses"]))
+    check("near misses report how far short they fell",
+          d["near_misses"][0]["short_by"] > 0)
+
+    won = B.diagnose_board([{"matchup": "A @ H", "market": "ATS", "pick": "H -3", "tier": "GOOD",
+                             "edge": 0.09, "confidence": 0.9}], cfg)
+    check("a board with a play says so", won["qualified"] == 1 and "cleared" in won["headline"])
+
+
+def test_slates_and_fcs() -> None:
+    """
+    ESPN's 2026 'Week 1' is 143 games across two separate weekends, and its
+    calendar has no Week 0 at all. Splitting recovers the real slates without
+    inventing a numbering ESPN doesn't publish.
+    """
+    print("\n[slate splitting + FCS classification]")
+    def row(gid, date, wk, away="A", home="H"):
+        return {"game_id": gid, "date": f"{date}T19:00Z", "week": wk, "away": away, "home": home,
+                "away_name": away, "home_name": home, "away_score": None, "home_score": None,
+                "completed": False, "neutral": False, "postponed": False, "canceled": False,
+                "status": "Sat", "odds": None}
+    rows = ([row(f"a{i}", "2026-08-29", 1) for i in range(6)]
+            + [row(f"b{i}", "2026-09-03", 1) for i in range(6)]
+            + [row(f"c{i}", "2026-09-05", 1) for i in range(128)])
+    sched = B.build_schedule(rows)
+    check("one ESPN week splits into its two real weekends", len(sched) == 2, str(len(sched)))
+    check("the opening slate is separated out", sched[0]["games"] == 6, str(sched[0]["games"]))
+    check("the main slate keeps the rest", sched[1]["games"] == 134, str(sched[1]["games"]))
+    check("both slates keep the week ESPN assigned", {s["week"] for s in sched} == {"1"})
+    check("labels carry the date range", "Aug 29" in sched[0]["label"], sched[0]["label"])
+    check("a single-weekend week is not split",
+          len(B.build_schedule([row(f"d{i}", "2026-09-12", 2) for i in range(60)])) == 1)
+
+    # FCS classification: an FCS school that HOSTS a buy game used to be
+    # promoted to FBS by the old "is it ever the home team" rule.
+    games = []
+    fbs_names = [f"F{i}" for i in range(12)]
+    for i, t in enumerate(fbs_names):           # a full round-robin-ish season
+        for j, u in enumerate(fbs_names):
+            if i < j:
+                games.append({"home": {"abbr": t}, "away": {"abbr": u}})
+    games.append({"home": {"abbr": "NDSU"}, "away": {"abbr": "F0"}})   # FCS team hosting
+    games.append({"home": {"abbr": "F1"}, "away": {"abbr": "UAPB"}})   # FCS visitor
+    fbs = B.fbs_teams(games)
+    check("an FCS school that hosts a buy game is still classified FCS",
+          "NDSU" not in fbs, str(sorted(fbs)))
+    check("an FCS visitor is classified FCS", "UAPB" not in fbs)
+    check("real FBS teams are all kept", all(t in fbs for t in fbs_names))
+
+    sparse = [{"home": {"abbr": "X"}, "away": {"abbr": "Y"}}]
+    check("with too little schedule cached it falls back instead of calling everyone FCS",
+          B.fbs_teams(sparse) == {"X"})
+
+    tagged = B.build_schedule([row("z", "2026-09-05", 1, away="UAPB", home="MIZ")], {"MIZ"})
+    check("the schedule tags the non-FBS side", tagged[0]["rows"][0]["away_fcs"] is True)
+    check("and leaves the FBS side untagged", tagged[0]["rows"][0]["home_fcs"] is False)
+    check("FCS games are shown, never dropped", tagged[0]["games"] == 1)
+
+
 def test_postponed_status_parsing() -> None:
     print("\n[postponed/canceled status parsing]")
     import pipeline.espn as E
@@ -741,6 +905,9 @@ def main() -> int:
     test_is_priceable()
     test_espn_odds_parser()
     test_build_schedule()
+    test_threshold_window(cfg)
+    test_diagnose_board(cfg)
+    test_slates_and_fcs()
     test_postponed_status_parsing()
     test_calibration(cfg)
     test_weekly_cap(cfg)
