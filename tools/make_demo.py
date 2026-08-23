@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse, datetime as dt, json, os, random, sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from pipeline import build as B, ledger as L, model as M, ratings as R, store  # noqa
+from pipeline import build as B, ledger as L, model as M, predictions as Pmod, ratings as R, store  # noqa
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEAMS = [("ALA","Alabama"),("UGA","Georgia"),("OSU","Ohio State"),("MICH","Michigan"),
@@ -92,7 +92,7 @@ def main() -> int:
     # Mirror the real pipeline exactly: price everything, guard correlation,
     # cap the week, and only then log bets -- otherwise the preview shows a
     # model that bets far more often than the one that actually ships.
-    priced, ledg = [], {}
+    priced, ledg, preds = [], {}, {}
     starting = float(cfg["bankroll"]["starting"])
     for g in sorted(games, key=lambda x: x["date_utc"]):
         conf = M.confidence_score(played.get(g["home"]["abbr"],0), played.get(g["away"]["abbr"],0), True, cfg)
@@ -105,15 +105,34 @@ def main() -> int:
             priced.append(c)
     priced = B.weekly_cap(B.correlation_guard(priced, cfg), cfg)
 
+    # Log the model's actual pick per market (not every complementary side --
+    # see build.py for why that would make win-rate tautologically ~50%).
+    by_game: dict[str, list[dict]] = {}
+    for c in priced:
+        by_game.setdefault(c["game_id"], []).append(c)
+    for cands in by_game.values():
+        for c in B.market_picks(cands):
+            Pmod.log_prediction(preds, c)
+
     for c in sorted(priced, key=lambda x: x["game_date"]):
         if c["tier"] != "PASS":
             L.open_bet(ledg, c, L.bankroll_from(ledg, starting), cfg)
     board = [c for c in priced if not c.pop("_completed")]
+    Pmod.grade_all(preds, {g["game_id"]: g for g in games})
 
     L.grade_all(ledg, {g["game_id"]: g for g in games}, lines)
     board.sort(key=lambda c: (M.TIER_RANK[c["tier"]], -c["edge"]))
 
     summary = L.summarise(ledg, starting)
+    game_rows = [{
+        "game_id": g["game_id"], "date": g.get("date_utc"), "week": g.get("week"),
+        "away": g["away"]["abbr"], "home": g["home"]["abbr"],
+        "away_name": g["away"]["name"], "home_name": g["home"]["name"],
+        "away_score": g.get("away_score"), "home_score": g.get("home_score"),
+        "completed": g.get("completed"), "neutral": g.get("neutral"),
+        "postponed": False, "canceled": False,
+        "status": g.get("status_detail"), "odds": g.get("odds") or None,
+    } for g in games]
     payload = {
         "meta": {"generated_at": store.now_iso(), "season": 2026,
                  "home_field_advantage": round(hfa,2), "league_avg_points": round(league,1),
@@ -123,11 +142,14 @@ def main() -> int:
         "board": [{**c, "line_move": store.line_move(lines, c["game_id"])} for c in board],
         "ledger": sorted(ledg.values(), key=lambda b: b.get("game_date") or "", reverse=True),
         "summary": {**summary, "calibration": L.calibration(ledg)},
+        "model_history": Pmod.summarise(preds),
         "ratings": sorted([{"team": t, "rating": round(rat[t],2),
                             "off": round((score_rat.get(t) or {}).get("off",0),2),
                             "def": round((score_rat.get(t) or {}).get("def",0),2),
                             "games": played.get(t,0), "ats": form.get(t)} for t in rat],
                           key=lambda r: -r["rating"]),
+        "games": game_rows,
+        "schedule": B.build_schedule(game_rows),
     }
 
     out = os.path.join(ROOT, "site", "data")

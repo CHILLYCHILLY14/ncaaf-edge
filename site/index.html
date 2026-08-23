@@ -227,13 +227,16 @@ footer b{color:var(--ink-2)}
 <main class="wrap">
   <section id="p-best" class="panel" role="tabpanel"></section>
   <section id="p-board" class="panel" role="tabpanel" hidden></section>
+  <section id="p-schedule" class="panel" role="tabpanel" hidden></section>
   <section id="p-ledger" class="panel" role="tabpanel" hidden></section>
   <section id="p-ratings" class="panel" role="tabpanel" hidden></section>
+  <section id="p-history" class="panel" role="tabpanel" hidden></section>
   <section id="p-health" class="panel" role="tabpanel" hidden></section>
 
   <footer>
     <b>How to read this.</b> Edge is the model's probability minus the break-even probability of the price on offer &mdash; a 5% edge on a &minus;110 line means the model thinks the bet wins 57.4% of the time where the price only needs 52.4%. Tiers are edge thresholds, scaled up when the model has thin data on a matchup, so an early-season number has to be bigger to earn the same label.<br>
-    <b>Nothing here is a guarantee.</b> The model is one opinion priced against a market that is very good at its job. Check the Model Health tab before trusting a number: if the calibration table says a 60% pick has been winning 45% of the time, the tiers are decoration. Bet only what you can afford to lose.
+    <b>Nothing here is a guarantee.</b> The model is one opinion priced against a market that is very good at its job. Check Model History before trusting a number — it tracks every prediction the model has ever made, not just the ones that became bets, which is the far larger and less biased sample. Bet only what you can afford to lose.<br>
+    <b>One book, always.</b> ESPN's free feed never carries more than a single sportsbook's line per game — there's no line shopping available without a paid odds API, so every price shown is whatever that one book posted.
   </footer>
 </main>
 
@@ -245,9 +248,9 @@ const DATA_BASE = (() => {
   if (q) return q.replace(/\/?$/, "/");
   return "./data/";
 })();
-const FILES = ["meta", "summary", "board", "ledger", "ratings"];
-const S = { meta:null, summary:null, board:[], ledger:[], ratings:[], tab:"best",
-            filters:{tier:"PLAYS", market:"ALL", q:""}, sort:{key:"rating", dir:-1} };
+const FILES = ["meta", "summary", "board", "ledger", "ratings", "model_history", "schedule"];
+const S = { meta:null, summary:null, board:[], ledger:[], ratings:[], model_history:null, schedule:[], tab:"best",
+            filters:{tier:"PLAYS", market:"ALL", q:""}, sort:{key:"rating", dir:-1}, schedWeek:null };
 
 async function load(){
   if (window.__NCAAF_DATA__){ Object.assign(S, window.__NCAAF_DATA__); return true; }
@@ -332,8 +335,10 @@ function renderKpis(){
 const TABS = [
   ["best","Best Bets", () => S.board.filter(b => b.tier !== "PASS").length],
   ["board","Full Board", () => S.board.length],
+  ["schedule","Schedule", () => S.schedule.reduce((n,w) => n + w.games, 0)],
   ["ledger","Bet Ledger", () => S.ledger.length],
   ["ratings","Power Ratings", () => S.ratings.length],
+  ["history","Model History", () => (S.model_history||{}).total_logged ?? null],
   ["health","Model Health", () => null],
 ];
 function renderTabs(){
@@ -650,9 +655,128 @@ function renderHealth(){
   el.innerHTML = h;
 }
 
+function renderSchedule(){
+  const el = document.getElementById("p-schedule");
+  const weeks = S.schedule || [];
+  let h = `<div class="panel-head"><div><h2>Schedule</h2>
+    <p>The full season, however far out ESPN has announced it — not just the games close enough to have a market yet. A line only ever shows here once a book has actually posted it; a future week with no odds shows a dash, never an estimate.</p></div></div>`;
+  if (!weeks.length){ el.innerHTML = h + `<div class="empty">Schedule appears after the first pipeline run.</div>`; return; }
+
+  if (S.schedWeek === null || !weeks.some(w => w.week === S.schedWeek)){
+    const firstOpen = weeks.find(w => w.completed < w.games);
+    S.schedWeek = (firstOpen || weeks[0]).week;
+  }
+  h += `<div class="filters">` + weeks.map(w => {
+    const done = w.completed === w.games && w.games > 0;
+    const dot = done ? "var(--good)" : (w.with_odds > 0 ? "var(--flag)" : "var(--ink-3)");
+    return `<button class="chipbtn" data-wk="${esc(w.week)}" aria-pressed="${S.schedWeek===w.week}"
+      style="display:inline-flex;align-items:center;gap:6px">
+      <span style="width:6px;height:6px;border-radius:50%;background:${dot};display:inline-block"></span>
+      Week ${esc(w.week)}</button>`;
+  }).join("") + `</div>`;
+
+  const wk = weeks.find(w => w.week === S.schedWeek);
+  h += `<p style="color:var(--ink-3);font-size:12.5px;margin:-4px 0 12px">
+    ${wk.games} game${wk.games===1?"":"s"} · ${wk.with_odds} with a posted line · ${wk.completed} final</p>`;
+  h += `<div class="tablewrap"><table><thead><tr>
+    <th>Date</th><th>Matchup</th><th>Status</th><th class="r">Spread (home)</th>
+    <th class="r">Total</th><th class="r">Away ML</th><th class="r">Home ML</th><th>Book</th>
+    </tr></thead><tbody>` + wk.rows.map(r => {
+      const status = r.completed
+        ? `<span class="res Win" style="background:var(--surface-2);color:var(--ink-2)">${esc(r.away_score)}–${esc(r.home_score)} Final</span>`
+        : r.postponed ? `<span class="res Loss">Postponed</span>`
+        : r.canceled ? `<span class="res Void">Canceled</span>`
+        : `<span style="color:var(--ink-3)">${esc(r.status||"Scheduled")}</span>`;
+      return `<tr>
+        <td class="num" style="white-space:nowrap;color:var(--ink-3)">${esc(when(r.date))}</td>
+        <td class="matchup">${esc(r.away)} @ ${esc(r.home)}<small>${esc(r.away_name)} at ${esc(r.home_name)}</small></td>
+        <td>${status}</td>
+        <td class="r num">${r.spread_home===null||r.spread_home===undefined?"—":(r.spread_home>0?"+":"")+r.spread_home}</td>
+        <td class="r num">${r.total===null||r.total===undefined?"—":r.total}</td>
+        <td class="r num">${r.ml_away===null||r.ml_away===undefined?"—":esc(price(r.ml_away))}</td>
+        <td class="r num">${r.ml_home===null||r.ml_home===undefined?"—":esc(price(r.ml_home))}</td>
+        <td style="color:var(--ink-3);font-size:12px">${r.book?esc(r.book):"—"}</td>
+      </tr>`;
+    }).join("") + `</tbody></table></div>`;
+  el.innerHTML = h;
+  el.querySelectorAll("[data-wk]").forEach(b => b.onclick = () => {
+    S.schedWeek = b.dataset.wk;
+    renderSchedule();
+  });
+}
+
+function renderHistory(){
+  const el = document.getElementById("p-history");
+  const m = S.model_history || {};
+  let h = `<div class="panel-head"><div><h2>Model History</h2>
+    <p>Every market the model has ever priced, graded — whether or not it was ever bet. The Bet Ledger only shows you the games the model disagreed with the market on, which is exactly where its own error runs largest. This is the much larger, much less selected sample: what did it say about everything, and how did that hold up?</p></div></div>`;
+
+  if (!m.total_logged){
+    el.innerHTML = h + `<div class="empty">Nothing logged yet — this fills in as soon as the pipeline prices its first game.</div>`;
+    return;
+  }
+
+  h += `<div class="grid4" style="border-top:none;padding-top:0;margin-bottom:18px;grid-template-columns:repeat(4,minmax(120px,1fr))">
+    <div><div class="k">Total Logged</div><div class="v" style="font-size:19px">${m.total_logged}</div></div>
+    <div><div class="k">Settled</div><div class="v" style="font-size:19px">${m.settled}</div></div>
+    <div><div class="k">Pending</div><div class="v" style="font-size:19px">${m.pending}</div></div>
+    <div><div class="k">Brier (all)</div><div class="v" style="font-size:19px">${m.brier ?? "—"}</div></div>
+  </div>`;
+
+  h += `<div class="two"><div><div class="tablewrap" style="padding:16px 18px">
+    <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px">Full-record calibration</div>
+    <p style="font-size:13px;color:var(--ink-2);margin:0 0 12px;line-height:1.55">Same question as the Model Health tab, over every prediction instead of only the bets — the sample size that actually settles the question.</p>`;
+  const cal = m.calibration || [];
+  if (!cal.length){
+    h += `<div class="empty" style="padding:22px">Not enough settled predictions yet.</div>`;
+  } else {
+    h += `<table style="min-width:0"><thead><tr><th>Claimed</th><th class="r">N</th><th class="r">Predicted</th><th class="r">Actual</th><th class="r">Gap</th></tr></thead><tbody>` +
+      cal.map(c => `<tr><td class="num">${esc(c.bucket)}</td><td class="r num">${c.n}</td>
+        <td class="r num">${pct(c.predicted)}</td><td class="r num">${pct(c.actual)}</td>
+        <td class="r num ${c.gap>0?"pos":c.gap<0?"neg":""}">${sgn(c.gap)}</td></tr>`).join("") +
+      `</tbody></table>`;
+  }
+  h += `</div></div><div>`;
+
+  const byTier = m.by_tier || {};
+  const tierOrder = ["BEST BET","GOOD","LEAN","PASS"];
+  h += `<div class="tablewrap" style="padding:16px 18px;margin-bottom:14px">
+    <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px">Accuracy by tier</div>
+    <p style="font-size:12.5px;color:var(--ink-2);margin:0 0 10px;line-height:1.5">The tiers only mean something if this table runs top-to-bottom in order. If PASS is out-winning BEST BET, the edge estimate isn't ordering picks correctly.</p>
+    <table style="min-width:0"><thead><tr><th>Tier</th><th class="r">N</th><th class="r">Win rate</th></tr></thead><tbody>` +
+    tierOrder.filter(t => byTier[t]).map(t => {
+      const r = byTier[t];
+      return `<tr><td><span class="tier ${TIERCLS[t]}">${esc(t)}</span></td><td class="r num">${r.n}</td>
+        <td class="r num" style="font-weight:600">${r.win_rate===null||r.win_rate===undefined?"—":pct(r.win_rate)}</td></tr>`;
+    }).join("") + `</tbody></table></div>`;
+
+  const byMkt = m.by_market || {};
+  h += `<div class="tablewrap" style="padding:16px 18px">
+    <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px">Accuracy by market</div>
+    <table style="min-width:0"><thead><tr><th>Market</th><th class="r">N</th><th class="r">Win rate</th><th class="r">Brier</th></tr></thead><tbody>` +
+    ["ATS","ML","TOTAL"].filter(k => byMkt[k]).map(k => {
+      const r = byMkt[k];
+      return `<tr><td class="num">${esc(k)}</td><td class="r num">${r.n}</td>
+        <td class="r num">${r.win_rate===null||r.win_rate===undefined?"—":pct(r.win_rate)}</td>
+        <td class="r num">${r.brier ?? "—"}</td></tr>`;
+    }).join("") + `</tbody></table></div></div></div>`;
+
+  const trend = m.week_trend || [];
+  if (trend.length){
+    h += `<div class="tablewrap" style="margin-top:18px"><table><thead><tr>
+      <th>Week</th><th class="r">Predictions settled</th><th class="r">Win rate</th><th class="r">Brier</th></tr></thead><tbody>` +
+      trend.map(t => `<tr><td class="num">${esc(t.week)}</td><td class="r num">${t.n}</td>
+        <td class="r num">${t.win_rate===null||t.win_rate===undefined?"—":pct(t.win_rate)}</td>
+        <td class="r num">${t.brier ?? "—"}</td></tr>`).join("") +
+      `</tbody></table></div>
+      <p style="color:var(--ink-3);font-size:12px;margin-top:8px">Watch this trend rather than any single week — a lower Brier and a win rate holding near its claimed probability as the season goes on is the model actually working, not luck on a handful of early games.</p>`;
+  }
+  el.innerHTML = h;
+}
+
 function renderPanels(){
-  ({best:renderBest, board:renderBoard, ledger:renderLedger,
-    ratings:renderRatings, health:renderHealth}[S.tab] || renderBest)();
+  ({best:renderBest, board:renderBoard, schedule:renderSchedule, ledger:renderLedger,
+    ratings:renderRatings, history:renderHistory, health:renderHealth}[S.tab] || renderBest)();
   postHeight();
 }
 

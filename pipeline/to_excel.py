@@ -104,6 +104,7 @@ def build(path: str) -> str:
     ledger = _read("ledger", [])
     ratings = _read("ratings", [])
     games = _read("games", [])
+    history = _read("model_history", {})
     cfg = meta.get("settings", {})
     symb = cfg.get("currency_symbol", "$")
     money = f'"{symb}"#,##0.00;("{symb}"#,##0.00);"—"'
@@ -274,7 +275,10 @@ def build(path: str) -> str:
 
     # ------------------------------------------------------- Games and Results
     ws = wb.create_sheet("Games & Results")
-    _title(ws, "Games & Results", "Every FBS game pulled this season, with the line as last seen.")
+    _title(ws, "Games & Results",
+           "Every FBS game pulled this season, in order, with the line as last seen — future weeks "
+           "included. A blank odds cell means no book has posted that line yet; it is left blank on "
+           "purpose rather than estimated, so nothing here is ever a guess.")
     _table(ws, 4,
            ["Date", "Wk", "Away", "Home", "Away Pts", "Home Pts", "Status", "Neutral",
             "Spread (home)", "Total", "Away ML", "Home ML", "Book"],
@@ -361,6 +365,71 @@ def build(path: str) -> str:
     c.alignment = Alignment(wrap_text=True, vertical="top")
     c.fill = FILL_NOTE
     ws.merge_cells(start_row=r, start_column=1, end_row=r + 4, end_column=5)
+
+    # ------------------------------------------------------------ Model History
+    ws = wb.create_sheet("Model History")
+    _title(ws, "Model History",
+           "Every market the model has ever priced, graded — whether or not it was ever bet. The Bet "
+           "Ledger only shows games the model disagreed with the market on, which is exactly where its "
+           "own error runs largest; this is the much larger, much less selected sample. One row is kept "
+           "per market per game (the side the model actually favoured), so a win rate here is a real "
+           "accuracy figure, not two complementary sides cancelling out to 50%.")
+    r = 4
+    for label, val, fmt in [
+        ("Total logged", history.get("total_logged"), "0"),
+        ("Settled", history.get("settled"), "0"),
+        ("Pending", history.get("pending"), "0"),
+        ("Brier (all settled)", history.get("brier"), "0.0000"),
+    ]:
+        ws.cell(row=r, column=1, value=label).font = F_BOLD
+        c = ws.cell(row=r, column=2, value=val)
+        c.number_format = fmt
+        c.font = F_KPI
+        r += 1
+    r += 1
+
+    ws.cell(row=r, column=1, value="FULL-RECORD CALIBRATION").font = F_BOLD
+    r += 1
+    hcal = history.get("calibration", [])
+    r = _table(ws, r, ["Claimed probability", "N", "Predicted", "Actual", "Gap"],
+               [[c["bucket"], c["n"], c["predicted"], c["actual"], c["actual"] - c["predicted"]]
+                for c in hcal],
+               [22, 9, 12, 12, 12],
+               [None, "0", pctf, pctf, "+0.0%;-0.0%"])
+    r += 2
+
+    ws.cell(row=r, column=1, value="ACCURACY BY TIER").font = F_BOLD
+    r += 1
+    by_tier = history.get("by_tier", {})
+    tier_order = ["BEST BET", "GOOD", "LEAN", "PASS"]
+    tier_rows = [[t, by_tier[t]["n"], by_tier[t]["win_rate"]] for t in tier_order if t in by_tier]
+    r = _table(ws, r, ["Tier", "N", "Win Rate"], tier_rows, [12, 8, 11], [None, "0", pctf])
+    r += 2
+
+    ws.cell(row=r, column=1, value="ACCURACY BY MARKET").font = F_BOLD
+    r += 1
+    by_market = history.get("by_market", {})
+    mkt_rows = [[m, by_market[m]["n"], by_market[m]["win_rate"], by_market[m].get("brier")]
+                for m in ("ATS", "ML", "TOTAL") if m in by_market]
+    r = _table(ws, r, ["Market", "N", "Win Rate", "Brier"], mkt_rows,
+               [12, 8, 11, 10], [None, "0", pctf, "0.0000"])
+    r += 2
+
+    ws.cell(row=r, column=1, value="WEEK TREND").font = F_BOLD
+    r += 1
+    wk_rows = [[w.get("week"), w.get("n"), w.get("win_rate"), w.get("brier")]
+               for w in history.get("week_trend", [])]
+    r = _table(ws, r, ["Week", "Predictions Settled", "Win Rate", "Brier"], wk_rows,
+               [10, 20, 11, 10], [None, "0", pctf, "0.0000"])
+    r += 2
+    c = ws.cell(row=r, column=1, value=(
+        "Watch this trend rather than any single week — a lower Brier and a win rate holding near its "
+        "claimed probability as the season goes on is the model actually working, not luck on a handful "
+        "of early games."))
+    c.font = F_BODY
+    c.alignment = Alignment(wrap_text=True, vertical="top")
+    c.fill = FILL_NOTE
+    ws.merge_cells(start_row=r, start_column=1, end_row=r + 2, end_column=5)
 
     wb.save(path)
     return path

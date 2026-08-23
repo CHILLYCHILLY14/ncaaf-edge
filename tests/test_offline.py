@@ -18,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pipeline import backtest as BT, build as B, ledger as L, model as M, ratings as R  # noqa: E402
+from pipeline import backtest as BT, build as B, ledger as L, model as M, predictions as P, ratings as R  # noqa: E402
 
 FAILS: list[str] = []
 
@@ -406,6 +406,217 @@ def test_fcs_guard(cfg: dict) -> None:
     check("the guard is a no-op when the setting is off", off[0]["tier"] == "BEST BET")
 
 
+def test_predictions_module() -> None:
+    """
+    The full prediction record: log once regardless of tier, grade once,
+    never re-price. Same discipline as the ledger, but for every priced
+    market -- including PASS -- so calibration has a much larger, much less
+    selected sample to work from than the bet ledger alone can offer.
+    """
+    print("\n[predictions / model history]")
+    preds = {}
+    passed_cand = {"game_id": "1", "market": "ATS", "side": "home", "pick": "H -3.5",
+                   "line": -3.5, "price": -110, "model_prob": 0.53, "market_fair_prob": 0.51,
+                   "breakeven": 0.5238, "edge": 0.006, "tier": "PASS", "confidence": 0.9,
+                   "matchup": "A @ H", "game_date": "2026-09-05T19:00Z", "week": 2}
+    best_cand = {"game_id": "2", "market": "ML", "side": "home", "pick": "H ML",
+                "line": None, "price": -150, "model_prob": 0.68, "market_fair_prob": 0.58,
+                "breakeven": 0.60, "edge": 0.08, "tier": "BEST BET", "confidence": 1.0,
+                "matchup": "B @ H", "game_date": "2026-09-05T19:00Z", "week": 2}
+
+    check("logs a PASS-tier prediction, not just qualified bets",
+          P.log_prediction(preds, passed_cand))
+    check("logs a BEST BET prediction too", P.log_prediction(preds, best_cand))
+    check("will not log the same prediction twice", not P.log_prediction(preds, passed_cand))
+    check("both predictions are pending before grading",
+          all(p["result"] == "Pending" for p in preds.values()))
+
+    games = {
+        "1": {"game_id": "1", "completed": True, "home_score": 24, "away_score": 21,
+              "home": {"abbr": "H"}, "away": {"abbr": "A"}},
+        "2": {"game_id": "2", "completed": True, "home_score": 30, "away_score": 10,
+              "home": {"abbr": "H"}, "away": {"abbr": "B"}},
+    }
+    n = P.grade_all(preds, games)
+    check("grades both pending predictions", n == 2, f"{n}")
+    p1 = preds[P.pred_key("1", "ATS", "home")]
+    # margin=3, line=-3.5 -> adj = 3 + (-3.5) = -0.5 < 0 -> home does NOT cover -> Loss
+    check("ATS -3.5 with only a 3-point win does not cover", p1["result"] == "Loss", p1["result"])
+    check("correct flag matches the result",
+          p1["correct"] == (p1["result"] == "Win"))
+    check("a graded prediction keeps its final score", "final_score" in p1)
+
+    unresolvable = {"game_id": "3", "market": "ML", "side": "home", "pick": "X ML",
+                    "line": None, "price": -110, "model_prob": 0.55, "market_fair_prob": 0.52,
+                    "breakeven": 0.5238, "edge": 0.03, "tier": "LEAN", "confidence": 0.8,
+                    "matchup": "Y @ X", "game_date": "2026-09-12T19:00Z", "week": 3}
+    P.log_prediction(preds, unresolvable)
+    n2 = P.grade_all(preds, games)  # game 3 not in games dict -- no score available
+    check("a prediction for an unfinished game stays pending", n2 == 0, f"{n2}")
+
+    summ = P.summarise(preds)
+    check("summary counts all logged predictions, not just settled",
+          summ["total_logged"] == 3, str(summ["total_logged"]))
+    check("summary separates settled from pending", summ["settled"] == 2 and summ["pending"] == 1)
+    check("brier computed over settled predictions", summ["brier"] is not None)
+    check("tier breakdown includes both PASS and BEST BET",
+          "PASS" in summ["by_tier"] and "BEST BET" in summ["by_tier"])
+    check("market breakdown present", "ATS" in summ["by_market"] and "ML" in summ["by_market"])
+    check("week trend has an entry", len(summ["week_trend"]) >= 1)
+
+
+def test_market_picks() -> None:
+    """
+    A game can legitimately produce candidates on both sides of a market
+    (home ATS priced separately from away ATS, over priced separately from
+    under) when both happen to clear the filters. Logging both to the
+    prediction record makes aggregate win-rate mathematically forced toward
+    50%: exactly one side wins every graded game, so summing complementary
+    sides cancels out any real signal. market_picks() must reduce a game's
+    candidates down to one per market -- the side the model actually favors,
+    i.e. the larger edge.
+    """
+    print("\n[market picks -- de-duplicating complementary sides]")
+    cands = [
+        {"game_id": "1", "market": "ATS", "side": "home", "edge": 0.04, "pick": "H -3.5"},
+        {"game_id": "1", "market": "ATS", "side": "away", "edge": 0.07, "pick": "A +3.5"},
+        {"game_id": "1", "market": "TOTAL", "side": "over", "edge": 0.02, "pick": "O 51.5"},
+        {"game_id": "1", "market": "TOTAL", "side": "under", "edge": 0.01, "pick": "U 51.5"},
+        {"game_id": "1", "market": "ML", "side": "home", "edge": 0.03, "pick": "H ML"},
+    ]
+    picks = B.market_picks(cands)
+    check("one candidate survives per market", len(picks) == 3, str(len(picks)))
+    by_market = {p["market"]: p for p in picks}
+    check("ATS keeps the higher-edge side (away)", by_market["ATS"]["side"] == "away")
+    check("TOTAL keeps the higher-edge side (over)", by_market["TOTAL"]["side"] == "over")
+    check("ML with only one side passes through unchanged", by_market["ML"]["side"] == "home")
+
+    # Feed both complementary sides through the real prediction logger and
+    # confirm the fix actually neutralizes the tautology on a tiny, fully
+    # graded slate: with the losing side never logged, win-rate reflects the
+    # model's real calls instead of being pinned near 50%.
+    preds: dict = {}
+    games: dict = {}
+    for i in range(1, 7):
+        gid = str(100 + i)
+        home_won = i <= 5  # model favors the correct side 5 of 6 times below
+        cands_g = [
+            {"game_id": gid, "market": "ML", "side": "home", "pick": "H ML",
+             "line": None, "price": -120, "model_prob": 0.65 if home_won else 0.60,
+             "market_fair_prob": 0.55, "breakeven": 0.5455,
+             "edge": 0.10 if home_won else 0.05, "tier": "GOOD", "confidence": 0.9,
+             "matchup": f"A{i} @ H{i}", "game_date": "2026-09-05T19:00Z", "week": 2},
+            {"game_id": gid, "market": "ML", "side": "away", "pick": "A ML",
+             "line": None, "price": +110, "model_prob": 0.35 if home_won else 0.40,
+             "market_fair_prob": 0.45, "breakeven": 0.4545,
+             "edge": 0.02, "tier": "LEAN", "confidence": 0.9,
+             "matchup": f"A{i} @ H{i}", "game_date": "2026-09-05T19:00Z", "week": 2},
+        ]
+        for c in B.market_picks(cands_g):
+            P.log_prediction(preds, c)
+        games[gid] = {"game_id": gid, "completed": True,
+                      "home_score": 27 if home_won else 17,
+                      "away_score": 17 if home_won else 27,
+                      "home": {"abbr": f"H{i}"}, "away": {"abbr": f"A{i}"}}
+    P.grade_all(preds, games)
+    summ = P.summarise(preds)
+    check("de-duplicated logging keeps one prediction per game",
+          summ["total_logged"] == 6, str(summ["total_logged"]))
+    wr = summ["by_market"]["ML"]["win_rate"]
+    check("win-rate reflects real accuracy (5/6), not a coin flip forced to 50%",
+          abs(wr - (5 / 6)) < 1e-3, str(wr))
+
+
+def test_snapshot_confidence() -> None:
+    print("\n[snapshot-based confidence]")
+    check("a brand-new line (0-1 snapshots) is discounted",
+          B.snapshot_confidence(0) < 1.0 and B.snapshot_confidence(1) < 1.0)
+    check("a well-observed line (4+ snapshots) reaches full confidence",
+          B.snapshot_confidence(4) == 1.0)
+    check("more snapshots never lowers confidence",
+          B.snapshot_confidence(1) <= B.snapshot_confidence(2) <= B.snapshot_confidence(5))
+    check("never exceeds 1.0 however many snapshots", B.snapshot_confidence(50) == 1.0)
+
+
+def test_is_priceable() -> None:
+    print("\n[is_priceable]")
+    today = dt.date(2026, 9, 10)
+    upcoming = {"completed": False, "postponed": False, "canceled": False,
+               "date_utc": "2026-09-12T19:00Z"}
+    check("a normal upcoming game is priceable", B.is_priceable(upcoming, today))
+    check("a completed game is not", not B.is_priceable({**upcoming, "completed": True}, today))
+    check("a postponed game is not", not B.is_priceable({**upcoming, "postponed": True}, today))
+    check("a canceled game is not", not B.is_priceable({**upcoming, "canceled": True}, today))
+    check("a game with no date is not", not B.is_priceable({**upcoming, "date_utc": ""}, today))
+    check("yesterday's still-live game stays priceable (grace window)",
+          B.is_priceable({**upcoming, "date_utc": "2026-09-09T19:00Z"}, today))
+    check("a game from well in the past is not",
+          not B.is_priceable({**upcoming, "date_utc": "2026-08-01T19:00Z"}, today))
+
+
+def test_build_schedule() -> None:
+    """
+    The season-wide schedule the model never guesses on: real games, grouped by
+    week, with odds shown only when ESPN actually posted them.
+    """
+    print("\n[schedule builder — no guessing]")
+    rows = [
+        {"game_id": "1", "date": "2026-09-05T19:00Z", "week": 2,
+         "away": "A", "home": "H", "away_name": "Away U", "home_name": "Home U",
+         "away_score": None, "home_score": None, "completed": False, "neutral": False,
+         "postponed": False, "canceled": False, "status": "Sat",
+         "odds": {"spread_home": -3.5, "spread_price_home": -110, "spread_price_away": -110,
+                  "total": 51.0, "over_price": -110, "under_price": -110,
+                  "ml_home": -160, "ml_away": 140, "book": "DraftKings"}},
+        {"game_id": "2", "date": "2026-10-03T19:00Z", "week": 6,
+         "away": "C", "home": "D", "away_name": "C U", "home_name": "D U",
+         "away_score": None, "home_score": None, "completed": False, "neutral": False,
+         "postponed": False, "canceled": False, "status": "Sat", "odds": None},
+    ]
+    sched = B.build_schedule(rows)
+    check("groups into the right number of weeks", len(sched) == 2, f"{len(sched)}")
+    wk2 = next(w for w in sched if w["week"] == "2")
+    wk6 = next(w for w in sched if w["week"] == "6")
+    check("weeks are ordered numerically", [w["week"] for w in sched] == ["2", "6"])
+    check("a game with a real line shows the real line",
+          wk2["rows"][0]["spread_home"] == -3.5)
+    check("a future week with no posted odds shows null, never a guess",
+          wk6["rows"][0]["spread_home"] is None and wk6["rows"][0]["total"] is None)
+    check("has_odds flag matches reality", wk2["rows"][0]["has_odds"] is True
+          and wk6["rows"][0]["has_odds"] is False)
+    check("week summary counts games with odds correctly",
+          wk2["with_odds"] == 1 and wk6["with_odds"] == 0)
+
+    unscheduled = B.build_schedule([{**rows[0], "week": None}])
+    check("a game with no week goes to 'Unscheduled' rather than being dropped",
+          unscheduled[0]["week"] == "Unscheduled")
+
+
+def test_postponed_status_parsing() -> None:
+    print("\n[postponed/canceled status parsing]")
+    import pipeline.espn as E
+    ev = {
+        "id": "999", "date": "2026-09-05T19:00Z", "season": {"year": 2026, "type": 2},
+        "week": {"number": 2},
+        "competitions": [{
+            "neutralSite": False, "conferenceCompetition": False,
+            "venue": {"fullName": "X Stadium", "indoor": False, "address": {}},
+            "status": {"type": {"completed": False, "state": "pre",
+                                "name": "STATUS_POSTPONED", "shortDetail": "Postponed"}},
+            "competitors": [
+                {"homeAway": "home", "score": "0",
+                 "team": {"id": "1", "abbreviation": "H", "displayName": "Home"}},
+                {"homeAway": "away", "score": "0",
+                 "team": {"id": "2", "abbreviation": "A", "displayName": "Away"}},
+            ],
+            "odds": [],
+        }],
+    }
+    g = E.parse_event(ev, ["DraftKings"])
+    check("a postponed game is flagged", g["postponed"] is True)
+    check("a postponed game is not marked canceled", g["canceled"] is False)
+
+
 def test_rest_days() -> None:
     print("\n[schedule-derived rest days]")
     games = [
@@ -449,6 +660,12 @@ def main() -> int:
     test_grading_and_ledger(cfg)
     test_pricing_pipeline(cfg)
     test_fcs_guard(cfg)
+    test_predictions_module()
+    test_market_picks()
+    test_snapshot_confidence()
+    test_is_priceable()
+    test_build_schedule()
+    test_postponed_status_parsing()
     test_calibration(cfg)
     test_weekly_cap(cfg)
     test_rest_days()

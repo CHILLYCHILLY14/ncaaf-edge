@@ -18,7 +18,7 @@ import json
 import os
 import sys
 
-from . import espn, ledger, model as M, ratings as R, store
+from . import espn, ledger, model as M, predictions as P, ratings as R, store
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE_DATA = os.path.join(ROOT, "site", "data")
@@ -58,6 +58,73 @@ def merge_games(cache: list[dict], fresh: list[dict]) -> list[dict]:
                 g["completed"] = old.get("completed", g.get("completed"))
         by_id[g["game_id"]] = g
     return sorted(by_id.values(), key=lambda x: (x.get("date_utc") or "", x["game_id"]))
+
+
+def is_priceable(g: dict, today: dt.date) -> bool:
+    """
+    Whether a game belongs on the priced board right now.
+
+    Excludes games already final (nothing left to price), games ESPN has
+    marked postponed or canceled (there is no market forming around a game
+    that isn't happening as scheduled), and anything more than a day in the
+    past (the rolling fetch window can carry a stale unfinished game briefly).
+    """
+    if g.get("completed") or g.get("postponed") or g.get("canceled"):
+        return False
+    d = (g.get("date_utc") or "")[:10]
+    if not d:
+        return False
+    return d >= (today - dt.timedelta(days=1)).isoformat()
+
+
+def build_schedule(game_rows: list[dict]) -> list[dict]:
+    """
+    The full season, grouped by week -- what's available, nothing invented.
+
+    The Board only prices games inside the rolling odds window, because that's
+    all the model can honestly have an opinion on. This is the other half:
+    every game for the whole season, so you can see what's coming even before
+    a market exists for it. A game with no posted line shows odds as null --
+    never a placeholder, never an estimate. If ESPN hasn't posted a number,
+    this doesn't have one either.
+    """
+    from collections import defaultdict
+    by_week: dict[str, list[dict]] = defaultdict(list)
+    for g in game_rows:
+        wk = g.get("week")
+        key = str(wk) if wk is not None else "Unscheduled"
+        o = g.get("odds") or {}
+        has_odds = any(o.get(k) is not None for k in ("spread_home", "total", "ml_home"))
+        by_week[key].append({
+            "game_id": g["game_id"], "date": g.get("date"),
+            "away": g["away"], "home": g["home"],
+            "away_name": g.get("away_name"), "home_name": g.get("home_name"),
+            "away_score": g.get("away_score"), "home_score": g.get("home_score"),
+            "completed": g.get("completed"), "neutral": g.get("neutral"),
+            "postponed": g.get("postponed"), "canceled": g.get("canceled"),
+            "status": g.get("status"),
+            "spread_home": o.get("spread_home") if has_odds else None,
+            "total": o.get("total") if has_odds else None,
+            "ml_home": o.get("ml_home") if has_odds else None,
+            "ml_away": o.get("ml_away") if has_odds else None,
+            "book": o.get("book") if has_odds else None,
+            "has_odds": has_odds,
+        })
+
+    def week_sort_key(k: str):
+        return (0, int(k)) if k.isdigit() else (1, k)
+
+    out = []
+    for wk in sorted(by_week, key=week_sort_key):
+        rows = sorted(by_week[wk], key=lambda r: r.get("date") or "")
+        out.append({
+            "week": wk,
+            "games": len(rows),
+            "with_odds": sum(1 for r in rows if r["has_odds"]),
+            "completed": sum(1 for r in rows if r["completed"]),
+            "rows": rows,
+        })
+    return out
 
 
 def rest_days(games: list[dict]) -> dict[str, int]:
@@ -167,6 +234,20 @@ def project(g: dict, rat: dict, hfa: float, score_rat: dict, league: float,
     }
 
 
+def snapshot_confidence(snapshots: int) -> float:
+    """
+    Scale confidence by how many times this line has been observed.
+
+    Not a guess about the game -- a fact about how much the pipeline has
+    actually watched this number. A line seen for the first time this run
+    (snapshots <= 1) hasn't had a chance to be corrected by anything; one
+    that's been stable across several runs has survived more scrutiny.
+    Ranges from 0.75 (brand new) up to 1.0 (seen 4+ times), never amplifying,
+    only ever tempering an otherwise-full confidence score.
+    """
+    return min(1.0, 0.75 + (0.25 / 3.0) * max(0, snapshots - 1))
+
+
 def price_game(g: dict, proj: dict, cfg: dict, conf: float) -> list[dict]:
     """Every market on one game, priced against the book."""
     o = g.get("odds") or {}
@@ -263,6 +344,28 @@ def apply_filters(cands: list[dict], cfg: dict) -> list[dict]:
             c["filtered"] = "negative expected value"
         ok.append(c)
     return ok
+
+
+def market_picks(cands: list[dict]) -> list[dict]:
+    """
+    Reduce a game's priced candidates to the model's actual pick per market.
+
+    price_game() returns BOTH sides of every market (home and away, over and
+    under) because the Full Board is meant to show the whole picture. But that
+    makes both sides unsuitable for measuring accuracy in aggregate: home and
+    away are complementary outcomes on the same game, so summing wins across
+    both sides is a tautology -- exactly one of them wins every non-push game,
+    so the aggregate win rate is forced toward 50% regardless of whether the
+    model is any good. This keeps only the side with the larger edge per
+    market -- the side the model would actually take -- which is what "was the
+    model's pick right?" has to mean for the answer to carry information.
+    """
+    by_market: dict[str, dict] = {}
+    for c in cands:
+        cur = by_market.get(c["market"])
+        if cur is None or c["edge"] > cur["edge"]:
+            by_market[c["market"]] = c
+    return list(by_market.values())
 
 
 def correlation_guard(cands: list[dict], cfg: dict) -> list[dict]:
@@ -387,17 +490,17 @@ def main() -> int:
     print(f"   FBS home participants this season: {len(fbs)} teams")
 
     # 5. Price the board.
+    # Postponed/canceled games are excluded from pricing -- there is no market
+    # forming around a game that isn't going to be played as scheduled, and
+    # pricing one would just be noise on the board.
     board: list[dict] = []
-    upcoming = [g for g in games
-                if not g.get("completed")
-                and g.get("date_utc")
-                and g["date_utc"][:10] >= (today - dt.timedelta(days=1)).isoformat()]
+    upcoming = [g for g in games if is_priceable(g, today)]
     for g in upcoming:
+        has_odds = bool(g.get("odds", {}).get("spread_home") is not None
+                        or g.get("odds", {}).get("ml_home") is not None)
         conf = M.confidence_score(played.get(g["home"]["abbr"], 0),
-                                  played.get(g["away"]["abbr"], 0),
-                                  bool(g.get("odds", {}).get("spread_home") is not None
-                                       or g.get("odds", {}).get("ml_home") is not None),
-                                  cfg)
+                                  played.get(g["away"]["abbr"], 0), has_odds, cfg)
+        conf *= snapshot_confidence(store.line_move(lines, g["game_id"]).get("snapshots", 0))
         proj = project(g, rat, hfa, score_rat, league, home_bump, rests, ovr, cfg)
         if not proj["ratings_known"]:
             conf = min(conf, 0.4)
@@ -425,6 +528,29 @@ def main() -> int:
     store.save("ledger.json", ledg)
     print(f"   ledger: +{opened} new, {graded} graded, {len(ledg)} total")
 
+    # 6b. Log EVERY priced market (bet or not) to the full prediction record.
+    # This is what makes calibration and accuracy trustworthy: the ledger alone
+    # is a biased sample (you only bet where the model disagrees most with the
+    # market, which is where it's most likely to be wrong), while this records
+    # what the model said about every game it ever priced.
+    # Reduce to the model's actual pick per market before logging -- board
+    # can carry both complementary sides of a market (home ATS + away ATS,
+    # over + under) when both happen to pass the filters, and logging both
+    # would make aggregate win-rate mathematically forced toward 50% (one
+    # side always wins, the other always loses, however good the model is).
+    preds = store.load("predictions.json", {})
+    logged = 0
+    by_game: dict[str, list[dict]] = {}
+    for c in board:
+        by_game.setdefault(c["game_id"], []).append(c)
+    for cands in by_game.values():
+        for c in market_picks(cands):
+            if P.log_prediction(preds, c):
+                logged += 1
+    pred_graded = P.grade_all(preds, {g["game_id"]: g for g in games})
+    store.save("predictions.json", preds)
+    print(f"   predictions: +{logged} new, {pred_graded} graded, {len(preds)} total")
+
     # 7. Emit the site payload.
     os.makedirs(SITE_DATA, exist_ok=True)
     summary = ledger.summarise(ledg, starting)
@@ -447,6 +573,7 @@ def main() -> int:
     write("board.json", [{**c, "line_move": store.line_move(lines, c["game_id"])} for c in board])
     write("ledger.json", sorted(ledg.values(), key=lambda b: (b.get("game_date") or ""), reverse=True))
     write("summary.json", {**summary, "calibration": ledger.calibration(ledg)})
+    write("model_history.json", P.summarise(preds))
     write("ratings.json", sorted(
         [{"team": t,
           "rating": round(rat[t], 2),
@@ -456,14 +583,17 @@ def main() -> int:
           "ats": form.get(t)}
          for t in rat],
         key=lambda r: -r["rating"]))
-    write("games.json", [{
+    game_rows = [{
         "game_id": g["game_id"], "date": g.get("date_utc"), "week": g.get("week"),
         "away": g["away"]["abbr"], "home": g["home"]["abbr"],
         "away_name": g["away"]["name"], "home_name": g["home"]["name"],
         "away_score": g.get("away_score"), "home_score": g.get("home_score"),
         "completed": g.get("completed"), "neutral": g.get("neutral"),
-        "status": g.get("status_detail"), "odds": g.get("odds"),
-    } for g in games])
+        "postponed": g.get("postponed"), "canceled": g.get("canceled"),
+        "status": g.get("status_detail"), "odds": g.get("odds") or None,
+    } for g in games]
+    write("games.json", game_rows)
+    write("schedule.json", build_schedule(game_rows))
 
     print(f"   wrote {SITE_DATA}")
     roi_txt = "n/a" if summary["roi"] is None else f"{summary['roi'] * 100:.1f}%"

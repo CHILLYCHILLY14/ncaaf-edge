@@ -181,6 +181,9 @@ def parse_event(ev: dict, odds_priority: list[str]) -> dict | None:
 
     completed = bool(status.get("completed"))
     state = status.get("state")  # pre | in | post
+    status_name = (status.get("name") or "").upper()  # e.g. STATUS_POSTPONED, STATUS_CANCELED
+    postponed = "POSTPON" in status_name or "DELAY" in status_name
+    canceled = "CANCEL" in status_name or "FORFEIT" in status_name
 
     return {
         "game_id": str(ev.get("id")),
@@ -195,6 +198,9 @@ def parse_event(ev: dict, odds_priority: list[str]) -> dict | None:
         "venue_city": addr.get("city"),
         "venue_state": addr.get("state"),
         "state": state,
+        "status_name": status_name,
+        "postponed": postponed,
+        "canceled": canceled,
         "completed": completed,
         "status_detail": status.get("shortDetail"),
         "home": team(home),
