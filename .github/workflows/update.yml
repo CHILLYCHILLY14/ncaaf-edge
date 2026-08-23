@@ -45,7 +45,9 @@ jobs:
 
       - name: Self-test
         # If the model is broken, do not publish numbers from it.
-        run: python -m tests.test_offline
+        run: |
+          python -m tests.test_offline
+          node tests/test_simulator.js
 
       - name: Refresh
         run: |
