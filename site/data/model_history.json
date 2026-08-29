@@ -1,1 +1,1 @@
-{"total_logged":274,"settled":0,"pending":274,"brier":null,"calibration":[],"by_tier":{},"by_market":{},"week_trend":[]}
+{"total_logged":279,"settled":3,"pending":276,"brier":0.2855,"calibration":[],"by_tier":{"PASS":{"n":3,"wins":2,"win_rate":0.6667}},"by_market":{"ATS":{"n":1,"wins":1,"win_rate":1.0,"brier":0.1606},"ML":{"n":1,"wins":1,"win_rate":1.0,"brier":0.4069},"TOTAL":{"n":1,"wins":0,"win_rate":0.0,"brier":0.2891}},"week_trend":[{"week":"1","n":3,"win_rate":0.6667,"brier":0.2855}]}
