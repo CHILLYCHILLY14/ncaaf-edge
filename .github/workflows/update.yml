@@ -11,6 +11,14 @@ name: Refresh model
 # GitHub's scheduler is best-effort and can run several minutes late. That is
 # fine for a model that reads a market, but do not treat it as a live feed.
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/update.yml'
+      - 'pipeline/**'
+      - 'config/**'
+      - 'tests/**'
+      - 'requirements.txt'
   schedule:
     - cron: "0 13,17,21 * * *"
     - cron: "0 3 * * *"
@@ -47,6 +55,7 @@ jobs:
         # If the model is broken, do not publish numbers from it.
         run: |
           python -m tests.test_offline
+          python -m unittest tests.test_repairs -v
           node tests/test_simulator.js
 
       - name: Refresh

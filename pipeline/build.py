@@ -326,6 +326,9 @@ def project(g: dict, rat: dict, hfa: float, score_rat: dict, league: float,
     pts_home = league + so_h["off"] - so_a["def"] + (0.0 if g.get("neutral") else home_bump)
     pts_away = league + so_a["off"] - so_h["def"]
     proj_total = pts_home + pts_away + float(o.get("total_adj", 0.0))
+    # Reconcile the displayed scores to the same margin and total used to price.
+    pts_home = (proj_total + mu) / 2.0
+    pts_away = (proj_total - mu) / 2.0
 
     return {
         "mu": round(mu, 2),
