@@ -14,6 +14,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A queued deployment must include data committed by the refresh.
+          ref: main
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
