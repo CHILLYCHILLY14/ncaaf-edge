@@ -55,6 +55,7 @@ jobs:
         # If the model is broken, do not publish numbers from it.
         run: |
           python -m tests.test_offline
+          python -m unittest tests.test_accuracy
           python -m unittest tests.test_repairs -v
           node tests/test_simulator.js
 
@@ -73,6 +74,7 @@ jobs:
         run: |
           git config user.name  "ncaaf-edge bot"
           git config user.email "actions@github.com"
+          git add state/model_accuracy.json site/data/accuracy.json
           git add -A state site/data NCAAF_Edge_Model.xlsx
           git diff --staged --quiet || git commit -m "refresh $(date -u +'%Y-%m-%d %H:%M UTC')"
           # Another run may have pushed while this one was working.

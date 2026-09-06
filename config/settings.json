@@ -15,7 +15,7 @@
     "_size_off_note": "'settled' = size off bankroll from settled bets only (no circularity). 'starting' = always size off the starting bankroll, like the old workbook."
   },
   "tiers": {
-    "_note": "Edge = model probability minus the break-even probability implied by the price you are getting.",
+    "_note": "Tier input is compressed expected return per unit at the offered price, capped by no-vig model value, minus selection and confidence reserves. Probability edge is published separately. Version 2026-09-06-ev2; historical tiers stay frozen.",
     "best_bet": 0.08,
     "good": 0.05,
     "lean": 0.03
@@ -36,7 +36,10 @@
     "_early_season_shrink_note": "How hard to pull a team's current-season rating back toward its preseason prior before it has min_games_for_full_confidence games played.",
     "selection_haircut": 0.01,
     "_selection_haircut_note": "Winner's-curse conservatism, subtracted from every estimated edge before tiering. You only bet where the model disagrees with the market, which is also where the model's own error is largest, so selected edges are overstated even when the model is calibrated across all games -- walk-forward simulation puts that gap at 9-15 points of probability. Raise it to bet less and more selectively. Re-measure with `python -m pipeline.backtest` on your own data rather than trusting this number.",
-    "_market_blend_calibration_note": "0.50 was chosen because it minimised out-of-sample calibration error in walk-forward simulation across both a sharp market and a soft one (mean absolute gap 0.045-0.050 at 0.50, vs 0.049-0.073 at 0.35 and 0.055-0.058 at 0.65). Profitability in simulation depends entirely on how inefficient you assume the market is, so it was not used to pick this value."
+    "_market_blend_calibration_note": "0.50 was chosen because it minimised out-of-sample calibration error in walk-forward simulation across both a sharp market and a soft one (mean absolute gap 0.045-0.050 at 0.50, vs 0.049-0.073 at 0.35 and 0.055-0.058 at 0.65). Profitability in simulation depends entirely on how inefficient you assume the market is, so it was not used to pick this value.",
+    "confidence_penalty_max": 0.018,
+    "edge_compression": 0.095,
+    "_confidence_penalty_note": "Bounded expected-return reserve: (1-confidence) \u00d7 1.8%, plus the selection haircut. Confidence never multiplies the tier thresholds."
   },
   "ratings": {
     "ridge_lambda": 18.0,
@@ -67,9 +70,9 @@
     "_max_total_projection_gap_note": "Same safety rail for projected total versus posted total.",
     "guard_headroom": 1.35,
     "_guard_headroom_note": "A safety rail must never sit below the bar it is protecting. Edge rises with the raw model/market gap, so a confidence-scaled tier threshold is itself a minimum raw gap in disguise; if the ceiling below lands under that minimum, the two guards overlap to zero and NOTHING can qualify at any price. That is exactly what silenced the entire 2026 opening slate. This widens the ceiling, only when it has to, to sit 35% above whatever a LEAN currently requires. Set to 1.0 to disable and apply the ceilings literally.",
-    "max_raw_market_prob_gap": 0.30,
+    "max_raw_market_prob_gap": 0.3,
     "_max_raw_market_prob_gap_note": "Reject extreme disagreements before market blending can make them look comfortably calibrated.",
-    "thin_data_confidence_threshold": 0.50,
+    "thin_data_confidence_threshold": 0.5,
     "max_thin_data_spread_gap": 7.0,
     "max_thin_data_raw_market_prob_gap": 0.18,
     "_thin_data_guard_note": "Before both teams have meaningful current-season data, require the raw ratings model to stay much closer to the market. This prevents a preseason prior or a newly promoted FBS team from appearing to be a huge edge.",

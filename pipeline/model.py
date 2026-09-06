@@ -148,6 +148,22 @@ def over_probability(proj_total: float, market_total: float, sd: float) -> tuple
 # Staking
 # --------------------------------------------------------------------------- #
 
+def compress_edge(raw: float, cfg: dict) -> float:
+    """Squeeze implausibly large probability edges toward an honest ceiling."""
+    ceiling = float(cfg["model"].get("edge_compression") or 0.0)
+    if ceiling <= 0:
+        return float(raw)
+    return ceiling * math.tanh(float(raw) / ceiling)
+
+
+def expand_edge(edge: float, cfg: dict) -> float:
+    """Inverse of compress_edge for threshold/guard comparisons."""
+    ceiling = float(cfg["model"].get("edge_compression") or 0.0)
+    if ceiling <= 0:
+        return float(edge)
+    ratio = min(1.0 - 1e-12, max(-1.0 + 1e-12, float(edge) / ceiling))
+    return ceiling * math.atanh(ratio)
+
 def kelly_fraction(p: float, american: float) -> float:
     """Full-Kelly fraction of bankroll. Negative means no bet."""
     b = american_to_decimal(american) - 1.0
@@ -164,8 +180,14 @@ def expected_value(p: float, american: float, p_push: float = 0.0) -> float:
     return p * b - p_lose
 
 
-def stake_for(p: float, american: float, bankroll: float, cfg: dict) -> float:
+def stake_for(p: float, american: float, bankroll: float, cfg: dict,
+              edge: float | None = None, push_prob: float = 0.0) -> float:
     bk = cfg["bankroll"]
+    if edge is not None:
+        active = 1 - max(0.0, min(1.0, float(push_prob)))
+        if active <= 0:
+            return 0.0
+        p = (1 + max(0.0, float(edge)) / active) / american_to_decimal(american)
     f = kelly_fraction(min(p, cfg["model"]["max_model_prob"]), american) * float(bk["kelly_fraction"])
     f = min(f, float(bk["max_stake_pct"]))
     raw = f * bankroll
@@ -177,6 +199,15 @@ def stake_for(p: float, american: float, bankroll: float, cfg: dict) -> float:
 # --------------------------------------------------------------------------- #
 # Tiering
 # --------------------------------------------------------------------------- #
+
+def risk_adjusted_edge(edge: float, cfg: dict, confidence: float) -> float:
+    """Expected return after selection and bounded data-uncertainty reserves."""
+    if confidence <= 0:
+        return float("-inf")
+    confidence = min(1.0, max(0.0, float(confidence)))
+    return (float(edge) - float(cfg["model"].get("selection_haircut", .01))
+            - (1-confidence)*float(cfg["model"].get("confidence_penalty_max", .018)))
+
 
 def tier_for(edge: float, cfg: dict, confidence: float) -> str:
     """
@@ -198,13 +229,12 @@ def tier_for(edge: float, cfg: dict, confidence: float) -> str:
     t = cfg["tiers"]
     if confidence <= 0:
         return "PASS"
-    edge = edge - float(cfg["model"].get("selection_haircut", 0.0))
-    scale = 1.0 / max(0.35, confidence)
-    if edge >= float(t["best_bet"]) * scale:
+    edge = risk_adjusted_edge(edge, cfg, confidence)
+    if edge >= float(t["best_bet"]):
         return "BEST BET"
-    if edge >= float(t["good"]) * scale:
+    if edge >= float(t["good"]):
         return "GOOD"
-    if edge >= float(t["lean"]) * scale:
+    if edge >= float(t["lean"]):
         return "LEAN"
     return "PASS"
 
@@ -222,8 +252,7 @@ def edge_floor(cfg: dict, confidence: float, tier: str = "lean") -> float:
     """
     if confidence <= 0:
         return float("inf")
-    scale = 1.0 / max(0.35, confidence)
-    return float(cfg["tiers"][tier]) * scale + float(cfg["model"].get("selection_haircut", 0.0))
+    return float(cfg["tiers"][tier]) - risk_adjusted_edge(0, cfg, confidence)
 
 
 def raw_gap_for_edge(edge: float, cfg: dict, price: float = -110.0) -> float:
@@ -244,7 +273,7 @@ def raw_gap_for_edge(edge: float, cfg: dict, price: float = -110.0) -> float:
     if blend >= 1.0:
         return float("inf")
     breakeven = american_to_prob(price)
-    raw = (edge + breakeven - blend * 0.5) / (1.0 - blend)
+    raw = ((1 + expand_edge(edge, cfg)) / american_to_decimal(price) - blend * 0.5) / (1.0 - blend)
     return raw - 0.5
 
 
@@ -275,7 +304,7 @@ def spread_gap_for_edge(edge: float, cfg: dict, price: float = -110.0,
             denom = pw + pl
             raw = pw / denom if denom else 0.5
             for r in (raw, 1.0 - raw):
-                best = max(best, (1 - blend) * r + blend * 0.5 - breakeven)
+                best = max(best, compress_edge((1-pp) * (((1-blend)*r + blend*.5)*american_to_decimal(price)-1), cfg))
         return best
 
     if edge_at(hi) < edge:

@@ -29,7 +29,7 @@ def open_bet(ledger: dict, cand: dict, bankroll: float, cfg: dict) -> bool:
     key = bet_key(cand["game_id"], cand["market"], cand["side"])
     if key in ledger:
         return False
-    stake = M.stake_for(cand["model_prob"], cand["price"], bankroll, cfg)
+    stake = M.stake_for(cand["model_prob"], cand["price"], bankroll, cfg, edge=cand.get("action_edge"), push_prob=cand.get("push_prob", 0))
     if stake <= 0:
         return False
     ledger[key] = {

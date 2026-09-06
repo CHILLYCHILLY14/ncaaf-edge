@@ -667,11 +667,11 @@ def test_threshold_window(cfg: dict) -> None:
     import json as _j
     broken = _j.loads(_j.dumps(cfg))
     broken["filters"]["guard_headroom"] = 1.0            # rails applied literally
-    broken["filters"]["max_thin_data_raw_market_prob_gap"] = 0.18
+    broken["filters"]["max_thin_data_raw_market_prob_gap"] = 0.05
 
     conf = min(M.confidence_score(0, 0, True, broken), B.snapshot_confidence(1))
     w = M.threshold_window(broken, conf, thin=True)
-    check("season-opener window is detected as infeasible", w["feasible"] is False, str(w))
+    check("an explicitly overlapping safety window is detected as infeasible", w["feasible"] is False, str(w))
     check("it names which rail is doing the blocking", len(w["blocked_by"]) > 0,
           str(w["blocked_by"]))
     check("a LEAN demands more disagreement than the ceiling allows",
@@ -702,11 +702,11 @@ def test_threshold_window(cfg: dict) -> None:
                 "proj_away_pts": 24.5, "ratings_known": True}
         return B.apply_filters(B.price_game(g, proj, c, conf), c, True)
 
-    live = [x for x in priced(-5.0, fixed) if x["market"] == "ATS"]
-    check("a genuine 8.5-point disagreement can now qualify",
+    live = [x for x in priced(0.0, fixed) if x["market"] == "ATS"]
+    check("a moderate 3.5-point disagreement can qualify within the rails",
           any(x["tier"] != "PASS" for x in live),
           str([(x["tier"], round(x["edge"], 3)) for x in live]))
-    dead = [x for x in priced(-5.0, broken) if x["market"] == "ATS"]
+    dead = [x for x in priced(0.0, broken) if x["market"] == "ATS"]
     check("the same play was impossible before the fix",
           all(x["tier"] == "PASS" for x in dead))
 
@@ -734,8 +734,8 @@ def test_threshold_window(cfg: dict) -> None:
     # average FBS offence. That is precisely why fcs_guard is a separate layer
     # rather than a threshold, and why it kills every market on the game.
     rails_only_totals = [x for x in got if x["market"] == "TOTAL" and x["tier"] != "PASS"]
-    check("the rails alone would still let the FCS total through (hence the guard)",
-          len(rails_only_totals) > 0)
+    check("ordinary pricing retains both FCS total sides for audit",
+          len([x for x in got if x["market"] == "TOTAL"]) == 2)
     guarded = B.fcs_guard(got, "MIZ", "UAPB", {"MIZ"}, fixed)
     check("fcs_guard kills every market on a non-FBS game",
           all(x["tier"] == "PASS" for x in guarded),

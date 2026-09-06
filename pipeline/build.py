@@ -12,6 +12,8 @@ bets -> grade finals -> write the JSON the site reads.
 
 from __future__ import annotations
 
+from . import game_history
+
 import argparse
 import datetime as dt
 import json
@@ -439,7 +441,26 @@ def price_game(g: dict, proj: dict, cfg: dict, conf: float) -> list[dict]:
     for c in out:
         c["odds_verified"] = True
         c["raw_market_gap"] = abs(c["raw_model_prob"] - c["market_fair_prob"])
-        c["tier"] = M.tier_for(c["edge"], cfg, conf)
+        # Both inputs are expected return per unit, not probability points.
+        # Qualify against the smaller of no-vig value and the offered-price EV.
+        push = float(c.get("push_prob") or 0.0)
+        fair = float(c.get("market_fair_prob") or 0.0)
+        decimal = M.american_to_decimal(c["price"])
+        c["probability_edge"] = c["model_prob"] - c["breakeven"]
+        c["ev"] = (1-push) * (c["model_prob"] * decimal - 1)
+        c["edge_raw"] = c["model_prob"] / fair - 1 if fair > 0 else 0.0
+        c["edge"] = M.compress_edge(c["edge_raw"], cfg)
+        c["edge_real"] = M.compress_edge(c["ev"], cfg)
+        c["edge_real_raw"] = c["ev"]
+        c["edge_price"] = c["edge_real"] - c["edge"]
+        c["edge_unit"] = "expected_return"
+        c["tier_version"] = "2026-09-06-ev2"
+        c["action_edge"] = M.risk_adjusted_edge(min(c["edge"], c["edge_real"]), cfg, conf)
+        c["qualification"] = (f"Adjusted expected return {c['action_edge']:.2%}; "
+                                f"GOOD needs {float(cfg['tiers']['good']):.2%}, "
+                                f"BEST needs {float(cfg['tiers']['best_bet']):.2%}. "
+                                f"Confidence {conf:.0%}; raw offered-price EV {c['ev']:.2%}.")
+        c["model_tier"] = c["tier"] = M.tier_for(min(c["edge"], c["edge_real"]), cfg, conf)
     return out
 
 
@@ -731,6 +752,7 @@ def main() -> int:
     # Postponed/canceled games are excluded from pricing -- there is no market
     # forming around a game that isn't going to be played as scheduled, and
     # pricing one would just be noise on the board.
+    forecast_games = []
     board: list[dict] = []
     lookahead = int(cfg["data"]["lookahead_days"])
     upcoming = [g for g in games if is_priceable(g, today, lookahead)]
@@ -748,6 +770,7 @@ def main() -> int:
         proj = project(g, rat, hfa, score_rat, league, home_bump, rests, ovr, cfg)
         if not proj["ratings_known"]:
             conf = min(conf, 0.4)
+        forecast_games.append({**g, "projection": proj, "p_home": M.moneyline_probability(proj["mu"], float(cfg["model"]["margin_sd"]), bool(cfg["model"]["use_key_numbers"]))})
         cands = apply_filters(price_game(g, proj, cfg, conf), cfg, odds_health["healthy"])
         cands = fcs_guard(cands, g["home"]["abbr"], g["away"]["abbr"], fbs, cfg)
         for c in cands:
@@ -835,6 +858,9 @@ def main() -> int:
     write("ledger.json", sorted(ledg.values(), key=lambda b: (b.get("game_date") or ""), reverse=True))
     write("summary.json", {**summary, "calibration": ledger.calibration(ledg)})
     write("model_history.json", P.summarise(preds))
+    game_history.update(os.path.join(store.STATE_DIR, "model_accuracy.json"),
+                        os.path.join(SITE_DATA, "accuracy.json"), board, forecast_games,
+                        games, "NCAAF", historical=preds.values())
     write("ratings.json", sorted(
         [{"team": t,
           "rating": round(rat[t], 2),

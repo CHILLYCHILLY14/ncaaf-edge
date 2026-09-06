@@ -377,7 +377,7 @@ const TABS = [
   ["sim","Simulator", () => null],
   ["ledger","Bet Ledger", () => S.ledger.length],
   ["ratings","Power Ratings", () => S.ratings.length],
-  ["history","Model History", () => (S.model_history||{}).total_logged ?? null],
+  ["history","Accuracy", () => (S.model_history||{}).total_logged ?? null],
   ["health","Model Health", () => null],
 ];
 function renderTabs(){
@@ -396,6 +396,7 @@ function why(b){
   const p = b.projection || {};
   const lm = b.line_move || {};
   const bits = [];
+  if (b.qualification) bits.push(esc(b.qualification));
   if (b.market === "ATS")
     bits.push(`Model projects <b>${p.mu >= 0 ? "home by " + p.mu.toFixed(1) : "away by " + Math.abs(p.mu).toFixed(1)}</b> against a line of ${b.line > 0 ? "+" : ""}${b.line}.`);
   else if (b.market === "TOTAL")
@@ -418,7 +419,7 @@ function stake(b){
   const s = S.summary || {};
   const bankroll = bk.size_off === "starting" ? (s.starting_bankroll || 0) : (s.current_bankroll || 0);
   const dec = b.price > 0 ? 1 + b.price/100 : 1 + 100/(-b.price);
-  const p = Math.min(b.model_prob, (cfg().model||{}).max_model_prob ?? 0.85);
+  const p = Math.min(b.action_edge != null ? (1 + b.action_edge / Math.max(.0001,1-(b.push_prob||0))) / dec : b.model_prob, (cfg().model||{}).max_model_prob ?? 0.85);
   let f = ((p*(dec-1)) - (1-p)) / (dec-1);
   f = Math.max(0, f) * (bk.kelly_fraction ?? 0.25);
   f = Math.min(f, bk.max_stake_pct ?? 0.05);
@@ -823,72 +824,7 @@ function renderSchedule(){
 }
 
 function renderHistory(){
-  const el = document.getElementById("p-history");
-  const m = S.model_history || {};
-  let h = `<div class="panel-head"><div><h2>Model History</h2>
-    <p>Every market the model has ever priced, graded — whether or not it was ever bet. The Bet Ledger only shows you the games the model disagreed with the market on, which is exactly where its own error runs largest. This is the much larger, much less selected sample: what did it say about everything, and how did that hold up?</p></div></div>`;
-
-  if (!m.total_logged){
-    el.innerHTML = h + `<div class="empty">Nothing logged yet — this fills in as soon as the pipeline prices its first game.</div>`;
-    return;
-  }
-
-  h += `<div class="grid4" style="border-top:none;padding-top:0;margin-bottom:18px;grid-template-columns:repeat(4,minmax(120px,1fr))">
-    <div><div class="k">Total Logged</div><div class="v" style="font-size:19px">${m.total_logged}</div></div>
-    <div><div class="k">Settled</div><div class="v" style="font-size:19px">${m.settled}</div></div>
-    <div><div class="k">Pending</div><div class="v" style="font-size:19px">${m.pending}</div></div>
-    <div><div class="k">Brier (all)</div><div class="v" style="font-size:19px">${m.brier ?? "—"}</div></div>
-  </div>`;
-
-  h += `<div class="two"><div><div class="tablewrap" style="padding:16px 18px">
-    <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px">Full-record calibration</div>
-    <p style="font-size:13px;color:var(--ink-2);margin:0 0 12px;line-height:1.55">Same question as the Model Health tab, over every prediction instead of only the bets — the sample size that actually settles the question.</p>`;
-  const cal = m.calibration || [];
-  if (!cal.length){
-    h += `<div class="empty" style="padding:22px">Not enough settled predictions yet.</div>`;
-  } else {
-    h += `<table style="min-width:0"><thead><tr><th>Claimed</th><th class="r">N</th><th class="r">Predicted</th><th class="r">Actual</th><th class="r">Gap</th></tr></thead><tbody>` +
-      cal.map(c => `<tr><td class="num">${esc(c.bucket)}</td><td class="r num">${c.n}</td>
-        <td class="r num">${pct(c.predicted)}</td><td class="r num">${pct(c.actual)}</td>
-        <td class="r num ${c.gap>0?"pos":c.gap<0?"neg":""}">${sgn(c.gap)}</td></tr>`).join("") +
-      `</tbody></table>`;
-  }
-  h += `</div></div><div>`;
-
-  const byTier = m.by_tier || {};
-  const tierOrder = ["BEST BET","GOOD","LEAN","PASS"];
-  h += `<div class="tablewrap" style="padding:16px 18px;margin-bottom:14px">
-    <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px">Accuracy by tier</div>
-    <p style="font-size:12.5px;color:var(--ink-2);margin:0 0 10px;line-height:1.5">The tiers only mean something if this table runs top-to-bottom in order. If PASS is out-winning BEST BET, the edge estimate isn't ordering picks correctly.</p>
-    <table style="min-width:0"><thead><tr><th>Tier</th><th class="r">N</th><th class="r">Win rate</th></tr></thead><tbody>` +
-    tierOrder.filter(t => byTier[t]).map(t => {
-      const r = byTier[t];
-      return `<tr><td><span class="tier ${TIERCLS[t]}">${esc(t)}</span></td><td class="r num">${r.n}</td>
-        <td class="r num" style="font-weight:600">${r.win_rate===null||r.win_rate===undefined?"—":pct(r.win_rate)}</td></tr>`;
-    }).join("") + `</tbody></table></div>`;
-
-  const byMkt = m.by_market || {};
-  h += `<div class="tablewrap" style="padding:16px 18px">
-    <div style="font:600 10.5px/1 'Public Sans',sans-serif;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px">Accuracy by market</div>
-    <table style="min-width:0"><thead><tr><th>Market</th><th class="r">N</th><th class="r">Win rate</th><th class="r">Brier</th></tr></thead><tbody>` +
-    ["ATS","ML","TOTAL"].filter(k => byMkt[k]).map(k => {
-      const r = byMkt[k];
-      return `<tr><td class="num">${esc(k)}</td><td class="r num">${r.n}</td>
-        <td class="r num">${r.win_rate===null||r.win_rate===undefined?"—":pct(r.win_rate)}</td>
-        <td class="r num">${r.brier ?? "—"}</td></tr>`;
-    }).join("") + `</tbody></table></div></div></div>`;
-
-  const trend = m.week_trend || [];
-  if (trend.length){
-    h += `<div class="tablewrap" style="margin-top:18px"><table><thead><tr>
-      <th>Week</th><th class="r">Predictions settled</th><th class="r">Win rate</th><th class="r">Brier</th></tr></thead><tbody>` +
-      trend.map(t => `<tr><td class="num">${esc(t.week)}</td><td class="r num">${t.n}</td>
-        <td class="r num">${t.win_rate===null||t.win_rate===undefined?"—":pct(t.win_rate)}</td>
-        <td class="r num">${t.brier ?? "—"}</td></tr>`).join("") +
-      `</tbody></table></div>
-      <p style="color:var(--ink-3);font-size:12px;margin-top:8px">Watch this trend rather than any single week — a lower Brier and a win rate holding near its claimed probability as the season goes on is the model actually working, not luck on a handful of early games.</p>`;
-  }
-  el.innerHTML = h;
+  document.getElementById("p-history").innerHTML = '<div data-model-accuracy></div>';
 }
 
 function renderSimulator(){
@@ -1056,5 +992,6 @@ boot();
 setInterval(() => { if (!window.__NCAAF_DATA__) boot(); }, 5*60*1000);
 window.addEventListener("resize", postHeight);
 </script>
+<script src="model-accuracy.js"></script>
 </body>
 </html>
