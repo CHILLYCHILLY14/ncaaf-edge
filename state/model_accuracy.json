@@ -1612,10 +1612,14 @@
    "reason": null,
    "captured_at": "2026-08-28T01:31:04+00:00",
    "version": "legacy",
-   "graded_at": null,
+   "graded_at": "2026-09-07T03:04:58.181189+00:00",
    "selected": true,
    "id": "call:NCAAF:401858437::ATS:away",
-   "result": "Pending"
+   "result": "Win",
+   "units": 0.925926,
+   "actual": null,
+   "final_home": 24.0,
+   "final_away": 10.0
   },
   "call:NCAAF:401858430::ATS:away": {
    "kind": "call",
@@ -2874,10 +2878,14 @@
    "reason": null,
    "captured_at": "2026-08-28T01:31:04+00:00",
    "version": "legacy",
-   "graded_at": null,
+   "graded_at": "2026-09-07T03:04:58.181189+00:00",
    "selected": true,
    "id": "call:NCAAF:401858437::ML:away",
-   "result": "Pending"
+   "result": "Loss",
+   "units": -1,
+   "actual": null,
+   "final_home": 24.0,
+   "final_away": 10.0
   },
   "call:NCAAF:401858445::ML:away": {
    "kind": "call",
@@ -8729,10 +8737,14 @@
    "reason": null,
    "captured_at": "2026-08-28T01:31:04+00:00",
    "version": "legacy",
-   "graded_at": null,
+   "graded_at": "2026-09-07T03:04:58.181189+00:00",
    "selected": true,
    "id": "call:NCAAF:401858437::TOTAL:over",
-   "result": "Pending"
+   "result": "Loss",
+   "units": -1,
+   "actual": null,
+   "final_home": 24.0,
+   "final_away": 10.0
   },
   "call:NCAAF:401864577::ML:away": {
    "kind": "call",
@@ -15147,6 +15159,22 @@
    "market_total": 50.5,
    "id": "game:NCAAF:401864578:::",
    "captured_at": "2026-09-06T23:35:48.253142+00:00",
+   "result": "Pending",
+   "version": "2026-09-06-ev2"
+  },
+  "game:NCAAF:401858225:::": {
+   "kind": "game",
+   "league": "NCAAF",
+   "event_id": "401858225",
+   "start": "2026-09-17T23:30Z",
+   "matchup": "SYR @ PITT",
+   "margin": 5.12,
+   "total": 54.4,
+   "probability": 0.6443639502126703,
+   "market_spread": null,
+   "market_total": null,
+   "id": "game:NCAAF:401858225:::",
+   "captured_at": "2026-09-07T03:04:58.179813+00:00",
    "result": "Pending",
    "version": "2026-09-06-ev2"
   }
