@@ -13854,8 +13854,13 @@
    "market_total": null,
    "id": "game:NCAAF:401858213:::",
    "captured_at": "2026-09-06T23:35:48.253142+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Graded",
+   "version": "2026-09-06-ev2",
+   "actual_margin": 70.0,
+   "actual_total": 84.0,
+   "final_home": 77.0,
+   "final_away": 7.0,
+   "graded_at": "2026-09-11T13:08:15.338695+00:00"
   },
   "game:NCAAF:401858215:::": {
    "kind": "game",
@@ -15274,8 +15279,13 @@
    "selected": true,
    "id": "call:NCAAF:401858213::ATS:away",
    "captured_at": "2026-09-07T21:08:13.964393+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Loss",
+   "version": "2026-09-06-ev2",
+   "units": -1,
+   "actual": null,
+   "final_home": 77.0,
+   "final_away": 7.0,
+   "graded_at": "2026-09-11T13:08:15.338695+00:00"
   },
   "call:NCAAF:401858215::ATS:away": {
    "kind": "call",
@@ -15318,8 +15328,13 @@
    "selected": true,
    "id": "call:NCAAF:401858213::TOTAL:under",
    "captured_at": "2026-09-07T21:08:13.964393+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Loss",
+   "version": "2026-09-06-ev2",
+   "units": -1,
+   "actual": null,
+   "final_home": 77.0,
+   "final_away": 7.0,
+   "graded_at": "2026-09-11T13:08:15.338695+00:00"
   },
   "call:NCAAF:401858220::TOTAL:under": {
    "kind": "call",
@@ -15450,8 +15465,13 @@
    "selected": false,
    "id": "call:NCAAF:401858213::TOTAL:over",
    "captured_at": "2026-09-07T21:08:13.964393+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Win",
+   "version": "2026-09-06-ev2",
+   "units": 1.0,
+   "actual": null,
+   "final_home": 77.0,
+   "final_away": 7.0,
+   "graded_at": "2026-09-11T13:08:15.338695+00:00"
   },
   "call:NCAAF:401858215::ATS:home": {
    "kind": "call",
@@ -15494,8 +15514,13 @@
    "selected": false,
    "id": "call:NCAAF:401858213::ATS:home",
    "captured_at": "2026-09-07T21:08:13.964393+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Win",
+   "version": "2026-09-06-ev2",
+   "units": 0.925926,
+   "actual": null,
+   "final_home": 77.0,
+   "final_away": 7.0,
+   "graded_at": "2026-09-11T13:08:15.338695+00:00"
   },
   "call:NCAAF:401858222::ML:away": {
    "kind": "call",
