@@ -3899,10 +3899,14 @@
    "reason": null,
    "captured_at": "2026-09-02T03:04:03+00:00",
    "version": "legacy",
-   "graded_at": null,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00",
    "selected": true,
    "id": "call:NCAAF:401856678::ATS:home",
-   "result": "Pending"
+   "result": "Loss",
+   "units": -1,
+   "actual": null,
+   "final_home": 21.0,
+   "final_away": 38.0
   },
   "call:NCAAF:401864502::ATS:home": {
    "kind": "call",
@@ -4201,10 +4205,14 @@
    "reason": null,
    "captured_at": "2026-09-02T03:04:03+00:00",
    "version": "legacy",
-   "graded_at": null,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00",
    "selected": true,
    "id": "call:NCAAF:401856678::ML:home",
-   "result": "Pending"
+   "result": "Loss",
+   "units": -1,
+   "actual": null,
+   "final_home": 21.0,
+   "final_away": 38.0
   },
   "call:NCAAF:401869142::TOTAL:over": {
    "kind": "call",
@@ -7922,10 +7930,14 @@
    "reason": null,
    "captured_at": "2026-09-02T03:04:03+00:00",
    "version": "legacy",
-   "graded_at": null,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00",
    "selected": true,
    "id": "call:NCAAF:401856678::TOTAL:over",
-   "result": "Pending"
+   "result": "Win",
+   "units": 0.925926,
+   "actual": null,
+   "final_home": 21.0,
+   "final_away": 38.0
   },
   "call:NCAAF:401866627::TOTAL:over": {
    "kind": "call",
@@ -8158,10 +8170,14 @@
    "reason": null,
    "captured_at": "2026-09-06T13:07:39+00:00",
    "version": "legacy",
-   "graded_at": null,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00",
    "selected": true,
    "id": "call:NCAAF:401858214::TOTAL:under",
-   "result": "Pending"
+   "result": "Win",
+   "units": 0.909091,
+   "actual": null,
+   "final_home": 28.0,
+   "final_away": 21.0
   },
   "call:NCAAF:401869955::TOTAL:over": {
    "kind": "call",
@@ -9410,10 +9426,14 @@
    "reason": null,
    "captured_at": "2026-09-06T13:07:39+00:00",
    "version": "legacy",
-   "graded_at": null,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00",
    "selected": true,
    "id": "call:NCAAF:401858214::ML:home",
-   "result": "Pending"
+   "result": "Win",
+   "units": 0.571429,
+   "actual": null,
+   "final_home": 28.0,
+   "final_away": 21.0
   },
   "call:NCAAF:401856662::TOTAL:over": {
    "kind": "call",
@@ -9598,10 +9618,14 @@
    "reason": null,
    "captured_at": "2026-09-06T13:07:39+00:00",
    "version": "legacy",
-   "graded_at": null,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00",
    "selected": true,
    "id": "call:NCAAF:401858214::ATS:home",
-   "result": "Pending"
+   "result": "Win",
+   "units": 0.892857,
+   "actual": null,
+   "final_home": 28.0,
+   "final_away": 21.0
   },
   "call:NCAAF:401866414::TOTAL:under": {
    "kind": "call",
@@ -11189,8 +11213,13 @@
    "selected": false,
    "id": "call:NCAAF:401858214::ATS:away",
    "captured_at": "2026-09-06T23:35:48.251176+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Loss",
+   "version": "2026-09-06-ev2",
+   "units": -1,
+   "actual": null,
+   "final_home": 28.0,
+   "final_away": 21.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "call:NCAAF:401856810::ML:home": {
    "kind": "call",
@@ -11409,8 +11438,13 @@
    "selected": false,
    "id": "call:NCAAF:401858214::TOTAL:over",
    "captured_at": "2026-09-06T23:35:48.251176+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Loss",
+   "version": "2026-09-06-ev2",
+   "units": -1,
+   "actual": null,
+   "final_home": 28.0,
+   "final_away": 21.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "call:NCAAF:401858443::ML:home": {
    "kind": "call",
@@ -11607,8 +11641,13 @@
    "selected": false,
    "id": "call:NCAAF:401858214::ML:away",
    "captured_at": "2026-09-06T23:35:48.251176+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Loss",
+   "version": "2026-09-06-ev2",
+   "units": -1,
+   "actual": null,
+   "final_home": 28.0,
+   "final_away": 21.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "call:NCAAF:401856670::ML:home": {
    "kind": "call",
@@ -11673,8 +11712,13 @@
    "selected": false,
    "id": "call:NCAAF:401856678::TOTAL:under",
    "captured_at": "2026-09-06T23:35:48.251176+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Loss",
+   "version": "2026-09-06-ev2",
+   "units": -1,
+   "actual": null,
+   "final_home": 21.0,
+   "final_away": 38.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "call:NCAAF:401858224::TOTAL:under": {
    "kind": "call",
@@ -12751,8 +12795,13 @@
    "selected": false,
    "id": "call:NCAAF:401856678::ML:away",
    "captured_at": "2026-09-06T23:35:48.251176+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Win",
+   "version": "2026-09-06-ev2",
+   "units": 0.434783,
+   "actual": null,
+   "final_home": 21.0,
+   "final_away": 38.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "call:NCAAF:401856670::ATS:home": {
    "kind": "call",
@@ -13059,8 +13108,13 @@
    "selected": false,
    "id": "call:NCAAF:401856678::ATS:away",
    "captured_at": "2026-09-06T23:35:48.251176+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Win",
+   "version": "2026-09-06-ev2",
+   "units": 0.909091,
+   "actual": null,
+   "final_home": 21.0,
+   "final_away": 38.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "call:NCAAF:401862707::ML:away": {
    "kind": "call",
@@ -13917,8 +13971,13 @@
    "market_total": null,
    "id": "game:NCAAF:401858222:::",
    "captured_at": "2026-09-06T23:35:48.253142+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Graded",
+   "version": "2026-09-06-ev2",
+   "actual_margin": 73.0,
+   "actual_total": 73.0,
+   "final_home": 73.0,
+   "final_away": 0.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "game:NCAAF:401858214:::": {
    "kind": "game",
@@ -13933,8 +13992,13 @@
    "market_total": 54.5,
    "id": "game:NCAAF:401858214:::",
    "captured_at": "2026-09-06T23:35:48.253142+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Graded",
+   "version": "2026-09-06-ev2",
+   "actual_margin": 7.0,
+   "actual_total": 49.0,
+   "final_home": 28.0,
+   "final_away": 21.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "game:NCAAF:401856678:::": {
    "kind": "game",
@@ -13949,8 +14013,13 @@
    "market_total": 50.5,
    "id": "game:NCAAF:401856678:::",
    "captured_at": "2026-09-06T23:35:48.253142+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Graded",
+   "version": "2026-09-06-ev2",
+   "actual_margin": -17.0,
+   "actual_total": 59.0,
+   "final_home": 21.0,
+   "final_away": 38.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "game:NCAAF:401856679:::": {
    "kind": "game",
@@ -15591,8 +15660,13 @@
    "selected": true,
    "id": "call:NCAAF:401858222::ML:away",
    "captured_at": "2026-09-08T03:04:35.557028+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Loss",
+   "version": "2026-09-06-ev2",
+   "units": -1,
+   "actual": null,
+   "final_home": 73.0,
+   "final_away": 0.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "call:NCAAF:401858222::ATS:away": {
    "kind": "call",
@@ -15613,8 +15687,13 @@
    "selected": true,
    "id": "call:NCAAF:401858222::ATS:away",
    "captured_at": "2026-09-08T03:04:35.557028+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Loss",
+   "version": "2026-09-06-ev2",
+   "units": -1,
+   "actual": null,
+   "final_home": 73.0,
+   "final_away": 0.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "call:NCAAF:401858222::TOTAL:over": {
    "kind": "call",
@@ -15635,8 +15714,13 @@
    "selected": true,
    "id": "call:NCAAF:401858222::TOTAL:over",
    "captured_at": "2026-09-08T03:04:35.557028+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Win",
+   "version": "2026-09-06-ev2",
+   "units": 0.869565,
+   "actual": null,
+   "final_home": 73.0,
+   "final_away": 0.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "call:NCAAF:401858222::ML:home": {
    "kind": "call",
@@ -15657,8 +15741,13 @@
    "selected": false,
    "id": "call:NCAAF:401858222::ML:home",
    "captured_at": "2026-09-08T03:04:35.557028+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Win",
+   "version": "2026-09-06-ev2",
+   "units": 0.01,
+   "actual": null,
+   "final_home": 73.0,
+   "final_away": 0.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "call:NCAAF:401858222::TOTAL:under": {
    "kind": "call",
@@ -15679,8 +15768,13 @@
    "selected": false,
    "id": "call:NCAAF:401858222::TOTAL:under",
    "captured_at": "2026-09-08T03:04:35.557028+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Loss",
+   "version": "2026-09-06-ev2",
+   "units": -1,
+   "actual": null,
+   "final_home": 73.0,
+   "final_away": 0.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "call:NCAAF:401858222::ATS:home": {
    "kind": "call",
@@ -15701,8 +15795,13 @@
    "selected": false,
    "id": "call:NCAAF:401858222::ATS:home",
    "captured_at": "2026-09-08T03:04:35.557028+00:00",
-   "result": "Pending",
-   "version": "2026-09-06-ev2"
+   "result": "Win",
+   "version": "2026-09-06-ev2",
+   "units": 0.892857,
+   "actual": null,
+   "final_home": 73.0,
+   "final_away": 0.0,
+   "graded_at": "2026-09-12T13:07:31.570555+00:00"
   },
   "game:NCAAF:401858226:::": {
    "kind": "game",
