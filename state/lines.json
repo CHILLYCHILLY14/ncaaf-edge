@@ -12645,6 +12645,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 800.0,
+   "ml_home": -1350.0,
+   "odds_verified": true,
+   "over_price": -115.0,
+   "spread_home": -19.5,
+   "spread_price_away": -110.0,
+   "spread_price_home": -110.0,
+   "total": 48.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -105.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401856686": [
@@ -13189,6 +13207,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": -130.0,
+   "ml_home": 110.0,
+   "odds_verified": true,
+   "over_price": -112.0,
+   "spread_home": 2.5,
+   "spread_price_away": -110.0,
+   "spread_price_home": -110.0,
+   "total": 53.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -108.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401856688": [
@@ -13497,6 +13533,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": -155.0,
+   "ml_home": 130.0,
+   "odds_verified": true,
+   "over_price": -108.0,
+   "spread_home": 3.0,
+   "spread_price_away": -108.0,
+   "spread_price_home": -112.0,
+   "total": 59.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -112.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401856689": [
@@ -13729,6 +13783,24 @@
    "spread_price_home": -112.0,
    "total": 46.5,
    "ts": "2026-09-15T17:08:00+00:00",
+   "under_price": -105.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 1100.0,
+   "ml_home": -2100.0,
+   "odds_verified": true,
+   "over_price": -115.0,
+   "spread_home": -22.5,
+   "spread_price_away": -112.0,
+   "spread_price_home": -108.0,
+   "total": 46.5,
+   "ts": "2026-09-15T21:08:13+00:00",
    "under_price": -105.0,
    "verified_markets": [
     "ATS",
@@ -14391,6 +14463,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 550.0,
+   "ml_home": -800.0,
+   "odds_verified": true,
+   "over_price": -115.0,
+   "spread_home": -16.5,
+   "spread_price_away": -102.0,
+   "spread_price_home": -118.0,
+   "total": 49.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -105.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401856695": [
@@ -14530,6 +14620,24 @@
    "spread_price_home": -102.0,
    "total": 50.5,
    "ts": "2026-09-15T17:08:00+00:00",
+   "under_price": -108.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 140.0,
+   "ml_home": -166.0,
+   "odds_verified": true,
+   "over_price": -112.0,
+   "spread_home": -3.5,
+   "spread_price_away": -118.0,
+   "spread_price_home": -102.0,
+   "total": 50.5,
+   "ts": "2026-09-15T21:08:13+00:00",
    "under_price": -108.0,
    "verified_markets": [
     "ATS",
@@ -23979,6 +24087,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 145.0,
+   "ml_home": -175.0,
+   "odds_verified": true,
+   "over_price": -110.0,
+   "spread_home": -3.5,
+   "spread_price_away": -105.0,
+   "spread_price_home": -115.0,
+   "total": 48.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -110.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401856797": [
@@ -24101,6 +24227,24 @@
    "spread_price_home": -110.0,
    "total": 49.5,
    "ts": "2026-09-15T17:08:00+00:00",
+   "under_price": -110.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 500.0,
+   "ml_home": -700.0,
+   "odds_verified": true,
+   "over_price": -110.0,
+   "spread_home": -14.5,
+   "spread_price_away": -112.0,
+   "spread_price_home": -108.0,
+   "total": 49.5,
+   "ts": "2026-09-15T21:08:13+00:00",
    "under_price": -110.0,
    "verified_markets": [
     "ATS",
@@ -24399,6 +24543,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 800.0,
+   "ml_home": -1350.0,
+   "odds_verified": true,
+   "over_price": -110.0,
+   "spread_home": -19.5,
+   "spread_price_away": -105.0,
+   "spread_price_home": -115.0,
+   "total": 56.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -110.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401856800": [
@@ -24649,6 +24811,24 @@
    "spread_price_home": -102.0,
    "total": 56.5,
    "ts": "2026-09-15T17:08:00+00:00",
+   "under_price": -105.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 2000.0,
+   "ml_home": -6500.0,
+   "odds_verified": true,
+   "over_price": -115.0,
+   "spread_home": -28.5,
+   "spread_price_away": -118.0,
+   "spread_price_home": -102.0,
+   "total": 56.5,
+   "ts": "2026-09-15T21:08:13+00:00",
    "under_price": -105.0,
    "verified_markets": [
     "ATS",
@@ -33526,6 +33706,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 330.0,
+   "ml_home": -425.0,
+   "odds_verified": true,
+   "over_price": -110.0,
+   "spread_home": -10.5,
+   "spread_price_away": -115.0,
+   "spread_price_home": -105.0,
+   "total": 51.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -110.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401858226": [
@@ -33834,6 +34032,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": -1350.0,
+   "ml_home": 800.0,
+   "odds_verified": true,
+   "over_price": -108.0,
+   "spread_home": 20.5,
+   "spread_price_away": -115.0,
+   "spread_price_home": -105.0,
+   "total": 56.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -112.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401858227": [
@@ -34108,6 +34324,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 145.0,
+   "ml_home": -175.0,
+   "odds_verified": true,
+   "over_price": -110.0,
+   "spread_home": -3.5,
+   "spread_price_away": -115.0,
+   "spread_price_home": -105.0,
+   "total": 43.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -110.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401858230": [
@@ -34355,6 +34589,24 @@
    "under_price": null,
    "verified_markets": [
     "ATS",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 100.0,
+   "ml_home": -120.0,
+   "odds_verified": true,
+   "over_price": -102.0,
+   "spread_home": -1.5,
+   "spread_price_away": -112.0,
+   "spread_price_home": -108.0,
+   "total": 59.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -118.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
     "ML"
    ]
   }
@@ -34698,6 +34950,24 @@
    "total": 53.5,
    "ts": "2026-09-15T17:08:00+00:00",
    "under_price": -105.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": -142.0,
+   "ml_home": 120.0,
+   "odds_verified": true,
+   "over_price": -105.0,
+   "spread_home": 3.0,
+   "spread_price_away": -105.0,
+   "spread_price_home": -115.0,
+   "total": 54.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -115.0,
    "verified_markets": [
     "ATS",
     "TOTAL",
@@ -45239,6 +45509,23 @@
     "ATS",
     "TOTAL"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": null,
+   "ml_home": null,
+   "odds_verified": true,
+   "over_price": -115.0,
+   "spread_home": -44.5,
+   "spread_price_away": -108.0,
+   "spread_price_home": -112.0,
+   "total": 60.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -110.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL"
+   ]
   }
  ],
  "401858450": [
@@ -45339,6 +45626,23 @@
    "total": 49.5,
    "ts": "2026-09-15T17:08:00+00:00",
    "under_price": -115.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": null,
+   "ml_home": null,
+   "odds_verified": true,
+   "over_price": -110.0,
+   "spread_home": -35.5,
+   "spread_price_away": -115.0,
+   "spread_price_home": -105.0,
+   "total": 49.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -110.0,
    "verified_markets": [
     "ATS",
     "TOTAL"
@@ -45484,6 +45788,24 @@
    "total": 49.5,
    "ts": "2026-09-15T17:08:00+00:00",
    "under_price": -110.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 1200.0,
+   "ml_home": -2400.0,
+   "odds_verified": true,
+   "over_price": -115.0,
+   "spread_home": -23.5,
+   "spread_price_away": -110.0,
+   "spread_price_home": -110.0,
+   "total": 48.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -105.0,
    "verified_markets": [
     "ATS",
     "TOTAL",
@@ -45673,6 +45995,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 1700.0,
+   "ml_home": -4500.0,
+   "odds_verified": true,
+   "over_price": -102.0,
+   "spread_home": -29.5,
+   "spread_price_away": -110.0,
+   "spread_price_home": -110.0,
+   "total": 52.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -118.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401858454": [
@@ -45830,6 +46170,23 @@
     "ATS",
     "TOTAL"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": null,
+   "ml_home": null,
+   "odds_verified": true,
+   "over_price": -112.0,
+   "spread_home": -57.5,
+   "spread_price_away": -112.0,
+   "spread_price_home": -108.0,
+   "total": 67.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -108.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL"
+   ]
   }
  ],
  "401858456": [
@@ -45968,6 +46325,23 @@
     "ATS",
     "TOTAL"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": null,
+   "ml_home": null,
+   "odds_verified": true,
+   "over_price": -108.0,
+   "spread_home": -40.5,
+   "spread_price_away": -102.0,
+   "spread_price_home": -118.0,
+   "total": 50.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -112.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL"
+   ]
   }
  ],
  "401858457": [
@@ -46078,6 +46452,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": -1800.0,
+   "ml_home": 1000.0,
+   "odds_verified": true,
+   "over_price": -110.0,
+   "spread_home": 24.5,
+   "spread_price_away": -105.0,
+   "spread_price_home": -115.0,
+   "total": 59.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -110.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401858458": [
@@ -46182,6 +46574,24 @@
    "spread_price_home": -110.0,
    "total": 52.5,
    "ts": "2026-09-15T17:08:00+00:00",
+   "under_price": -108.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 470.0,
+   "ml_home": -650.0,
+   "odds_verified": true,
+   "over_price": -112.0,
+   "spread_home": -14.0,
+   "spread_price_away": -108.0,
+   "spread_price_home": -112.0,
+   "total": 52.5,
+   "ts": "2026-09-15T21:08:13+00:00",
    "under_price": -108.0,
    "verified_markets": [
     "ATS",
@@ -46347,6 +46757,24 @@
    "spread_price_home": -102.0,
    "total": 45.5,
    "ts": "2026-09-15T17:08:00+00:00",
+   "under_price": -112.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 1200.0,
+   "ml_home": -2400.0,
+   "odds_verified": true,
+   "over_price": -108.0,
+   "spread_home": -24.5,
+   "spread_price_away": -118.0,
+   "spread_price_home": -102.0,
+   "total": 45.5,
+   "ts": "2026-09-15T21:08:13+00:00",
    "under_price": -112.0,
    "verified_markets": [
     "ATS",
@@ -49789,6 +50217,24 @@
    "spread_price_home": -105.0,
    "total": 63.5,
    "ts": "2026-09-15T17:08:00+00:00",
+   "under_price": -110.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 124.0,
+   "ml_home": -148.0,
+   "odds_verified": true,
+   "over_price": -110.0,
+   "spread_home": -3.0,
+   "spread_price_away": -118.0,
+   "spread_price_home": -102.0,
+   "total": 63.5,
+   "ts": "2026-09-15T21:08:13+00:00",
    "under_price": -110.0,
    "verified_markets": [
     "ATS",
@@ -56479,6 +56925,24 @@
     "TOTAL",
     "ML"
    ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 180.0,
+   "ml_home": -218.0,
+   "odds_verified": true,
+   "over_price": -118.0,
+   "spread_home": -5.5,
+   "spread_price_away": -105.0,
+   "spread_price_home": -115.0,
+   "total": 50.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -102.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
   }
  ],
  "401862776": [
@@ -61372,6 +61836,24 @@
    "spread_price_home": -112.0,
    "total": 39.5,
    "ts": "2026-09-15T17:08:00+00:00",
+   "under_price": -110.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 100.0,
+   "ml_home": -120.0,
+   "odds_verified": true,
+   "over_price": -110.0,
+   "spread_home": -1.5,
+   "spread_price_away": -112.0,
+   "spread_price_home": -108.0,
+   "total": 39.5,
+   "ts": "2026-09-15T21:08:13+00:00",
    "under_price": -110.0,
    "verified_markets": [
     "ATS",
@@ -66372,6 +66854,24 @@
    "total": 49.5,
    "ts": "2026-09-15T17:08:00+00:00",
    "under_price": -108.0,
+   "verified_markets": [
+    "ATS",
+    "TOTAL",
+    "ML"
+   ]
+  },
+  {
+   "book": "DraftKings",
+   "ml_away": 440.0,
+   "ml_home": -600.0,
+   "odds_verified": true,
+   "over_price": -118.0,
+   "spread_home": -14.5,
+   "spread_price_away": -115.0,
+   "spread_price_home": -105.0,
+   "total": 49.5,
+   "ts": "2026-09-15T21:08:13+00:00",
+   "under_price": -102.0,
    "verified_markets": [
     "ATS",
     "TOTAL",
